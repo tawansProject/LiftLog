@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import * as W from '../lib/store.js';
-import { useStore, setState } from '../lib/store.js';
+import { useStore, setState, updateSettings } from '../lib/store.js';
 import { push } from '../nav.js';
 import { Thumb, MuscleChips, KindBadge, setNumbers, useNow, Ring, Sheet, Stepper } from '../components.jsx';
 import { duration, rest as fmtRest, weight as fmtW } from '../lib/format.js';
@@ -30,6 +30,7 @@ export function LiveWorkout() {
   const ex = w.exercises[w.currentIndex];
   const finished = w.exercises.filter(isFinished).length;
   const pendingRating = w.effortPendingIndex;
+  const upNext = resting ? W.upNextExercise(w) : null;
 
   return (
     <div class="overlay">
@@ -43,12 +44,13 @@ export function LiveWorkout() {
         <div class="center mb8">
           <div class="small muted">Total time</div>
           <div class="timer-big">{duration((now - w.startedAt) / 1000)}</div>
-          <div class="small muted">{finished} of {w.exercises.length} exercises done</div>
+          <div class="small muted">{w.exercises.length ? `${finished} of ${w.exercises.length} exercises done` : 'No exercises yet'}</div>
         </div>
 
         {resting && (
           <div class="rest">
             <Ring progress={(w.restEndsAt - now) / 1000 / Math.max(1, w.restTotal)} />
+            {upNext && <Thumb key={upNext.exerciseId} src={upNext.gifUrl} id={upNext.exerciseId} name={upNext.name} />}
             <div class="grow">
               <div class="small bold">{w.restBetweenExercises ? 'Rest before next exercise' : 'Rest between sets'}</div>
               <div class="timer-big" style={{ fontSize: 34 }}>{duration(Math.ceil((w.restEndsAt - now) / 1000))}</div>
@@ -64,14 +66,22 @@ export function LiveWorkout() {
         <div class="strip">
           {w.exercises.map((e, i) => (
             <button key={e.id} class={`${i === w.currentIndex ? 'cur' : ''} ${isFinished(e) ? 'done' : ''}`} onClick={() => W.focusExercise(i)}>
-              <Thumb src={e.gifUrl} name={e.name} />
+              <Thumb src={e.gifUrl} id={e.exerciseId} name={e.name} />
               <div class="ellipsis">{e.status === 'completed' ? '✓ ' : e.status === 'skipped' ? '⤼ ' : ''}{i + 1}. {e.name}</div>
             </button>
           ))}
           <button onClick={() => push({ type: 'search', mode: 'workout' })}><div class="thumb ph">＋</div><div>Add</div></button>
         </div>
 
-        {ex && <ExerciseCard ex={ex} index={w.currentIndex} records={s.records} />}
+        {!w.exercises.length && (
+          <div class="card center quick-start">
+            <div style={{ fontSize: 36 }}>⚡</div>
+            <h3>Quick session started</h3>
+            <p class="small muted">Add exercises as you go. When you finish, it's saved to your sessions, and you can keep it as a workout plan.</p>
+            <button class="btn mt8" onClick={() => push({ type: 'search', mode: 'workout' })}>🔍 Add first exercise</button>
+          </div>
+        )}
+        {ex && <ExerciseCard ex={ex} index={w.currentIndex} records={s.records} showGif={s.settings.showGifInWorkout} />}
       </div>
 
       <div class="bottom-bar"><div>
@@ -101,7 +111,7 @@ export function LiveWorkout() {
   );
 }
 
-function ExerciseCard({ ex, index, records }) {
+function ExerciseCard({ ex, index, records, showGif }) {
   const nums = setNumbers(ex.sets);
   const sug = suggestionFor(ex.exerciseId, records);
   const nextSet = ex.sets.findIndex((s) => !s.isDone);
@@ -111,12 +121,19 @@ function ExerciseCard({ ex, index, records }) {
     <div>
       <div class="card">
         <div class="row">
-          <Thumb src={ex.gifUrl} name={ex.name} onClick={() => ex.gifUrl && push({ type: 'gif', src: ex.gifUrl, name: ex.name })} />
+          {!showGif && <Thumb src={ex.gifUrl} id={ex.exerciseId} name={ex.name} onClick={() => push({ type: 'gif', src: ex.gifUrl, id: ex.exerciseId, name: ex.name })} />}
           <div class="col grow">
             <h3 style={{ margin: 0 }}>{index + 1}. {ex.name}</h3>
             <MuscleChips muscles={ex.targetMuscles} />
           </div>
+          <button class="link small" onClick={() => updateSettings({ showGifInWorkout: !showGif })}>{showGif ? 'Hide GIF' : 'Show GIF'}</button>
         </div>
+        {showGif && (
+          <div class="mt8 gif-hero">
+            <Thumb key={ex.exerciseId} src={ex.gifUrl} id={ex.exerciseId} name={ex.name} lg
+              onClick={() => push({ type: 'gif', src: ex.gifUrl, id: ex.exerciseId, name: ex.name })} />
+          </div>
+        )}
         {ex.status === 'completed' && <div class="small muted mt8">Effort {ex.effort ?? '—'}/10{ex.injured ? ' · ⚠︎ injured' : ''}</div>}
         {ex.status === 'skipped' && <div class="small muted mt8">Skipped</div>}
       </div>
@@ -132,7 +149,7 @@ function ExerciseCard({ ex, index, records }) {
       <div class="card">
         <div class="set-row small muted" style={{ paddingTop: 0 }}><span>Set</span><span>Reps</span><span>kg</span><span>Done</span></div>
         {ex.sets.map((set, i) => (
-          <div class={`set-row ${set.isDone ? 'done' : ''}`} key={set.id} style={i === nextSet ? { background: 'rgba(255,255,255,0.04)', borderRadius: 10 } : null}>
+          <div class={`set-row ${set.isDone ? 'done' : ''}`} key={set.id} style={i === nextSet ? { background: 'var(--accent-soft)', outline: '1px solid var(--accent)', borderRadius: 10 } : null}>
             <button onClick={() => !set.isDone && W.updateSet(index, i, { kind: set.kind === 'normal' ? 'warmup' : set.kind === 'warmup' ? 'drop' : 'normal' })}><KindBadge kind={set.kind} index={nums[i]} /></button>
             <Stepper width={40} value={set.reps} onChange={(v) => W.updateSet(index, i, { reps: v })} />
             <Stepper width={44} value={set.weight} decimals step={step} onChange={(v) => W.updateSet(index, i, { weight: v })} />

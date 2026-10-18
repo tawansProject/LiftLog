@@ -71,7 +71,7 @@ export function Search({ mode }) {
 function ResultRow({ ex, onPick }) {
   return (
     <button class="list-btn" onClick={() => onPick(ex)}>
-      <Thumb src={ex.gifUrl} name={ex.name} />
+      <Thumb src={ex.gifUrl} id={ex.exerciseId} name={ex.name} />
       <div class="col grow">
         <div class="bold">{capitalize(ex.name)}</div>
         <div class="small muted ellipsis">Targets: {ex.targetMuscles.map(capitalize).join(', ') || '—'}</div>
@@ -150,7 +150,7 @@ export function ExerciseConfig({ mode, plan: initial, exercise, note }) {
   return (
     <Page>
       <TopBar title={mode === 'edit' ? 'Edit exercise' : 'Exercise'} />
-      <Thumb src={plan.gifUrl} name={plan.name} lg />
+      <Thumb src={plan.gifUrl} id={plan.exerciseId} name={plan.name} lg />
       <h1 style={{ fontSize: 24, marginTop: 14 }}>{plan.name}</h1>
       <div class="small muted mb8">Target muscles</div>
       <MuscleChips muscles={plan.targetMuscles} />

@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks';
-import { useStore, closeSummary, deleteRecord, updateRecordExercise, updateRecordCalories } from '../lib/store.js';
-import { pop } from '../nav.js';
-import { Page, TopBar, BottomBar, Thumb, MuscleOverview, Stepper } from '../components.jsx';
+import { useStore, closeSummary, deleteRecord, updateRecordExercise, updateRecordCalories, saveRecordAsPlan } from '../lib/store.js';
+import { pop, toast } from '../nav.js';
+import { Page, TopBar, BottomBar, Thumb, MuscleOverview, Stepper, BodyMap } from '../components.jsx';
 import { duration, volume, weight as fmtW, dateLabel, SET_KINDS } from '../lib/format.js';
-import { doneSets, exVolume, topSet, recordVolume } from '../lib/models.js';
+import { doneSets, exVolume, topSet, recordVolume, hasProgress } from '../lib/models.js';
 import { loadsLogged } from '../lib/muscles.js';
 import { personalRecords } from '../lib/history.js';
 import { SOURCE_LABEL } from '../lib/calories.js';
@@ -37,6 +37,18 @@ export function RecordView({ id, justFinished }) {
       </div>
       {calOpen && <CaloriesEditor r={r} onDone={() => setCalOpen(false)} />}
 
+      {!r.templateId && r.exercises.some(hasProgress) && (
+        <div class="card mt16">
+          <div class="bold">⚡ Quick session</div>
+          <p class="small muted">Save it as a workout plan to repeat and edit it later, starting from what you lifted today.</p>
+          <button class="btn small" onClick={() => {
+            const name = prompt('Name for the workout plan', r.name === 'Quick session' ? '' : r.name);
+            if (name == null) return;
+            if (saveRecordAsPlan(r.id, name.trim() || `Plan ${dateLabel(r.startedAt)}`)) toast('Saved as workout plan');
+          }}>Save as workout plan</button>
+        </div>
+      )}
+
       {prs.length > 0 && (
         <>
           <h2>🏆 Personal records</h2>
@@ -50,7 +62,7 @@ export function RecordView({ id, justFinished }) {
         return (
           <div class="card" key={e.id}>
             <div class="row">
-              <Thumb src={e.gifUrl} name={e.name} />
+              <Thumb src={e.gifUrl} id={e.exerciseId} name={e.name} />
               <div class="col grow">
                 <div class="bold ellipsis">{e.name}</div>
                 <div class="small muted">{doneSets(e).length}/{e.sets.length} sets · {volume(exVolume(e))}{top ? ` · top ${fmtW(top.weight)} × ${top.reps}` : ''}</div>
@@ -66,6 +78,7 @@ export function RecordView({ id, justFinished }) {
       })}
 
       <h2>Muscles worked</h2>
+      <div class="card"><BodyMap loads={loadsLogged(r.exercises)} /></div>
       <div class="card"><MuscleOverview loads={loadsLogged(r.exercises)} /></div>
 
       {justFinished && <BottomBar><button class="btn" onClick={close}>Done</button></BottomBar>}

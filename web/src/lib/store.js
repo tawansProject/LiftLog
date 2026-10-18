@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS = {
   restAlerts: true,
   keepAwake: true,
   sound: true,
+  showGifInWorkout: true,
 };
 
 function load() {
@@ -160,6 +161,37 @@ export function startWorkout(name, templateId, items) {
     },
     lastFinishedId: null,
   });
+}
+
+/** Quick session: starts right away with no plan. Exercises are added while
+ * training; it's saved as a session when finished (and can be kept as a plan). */
+export function startQuickWorkout() {
+  startWorkout('Quick session', null, []);
+}
+
+/** Turns a finished quick session into a reusable workout plan and links it. */
+export function saveRecordAsPlan(recordId, name) {
+  const r = state.records.find((x) => x.id === recordId);
+  if (!r) return null;
+  const items = r.exercises.filter(hasProgress).map(asPlanned);
+  if (!items.length) return null;
+  const id = uid();
+  const now = Date.now();
+  setState((s) => ({
+    templates: [...s.templates, { id, name, items, createdAt: now, updatedAt: now }],
+    records: s.records.map((x) => (x.id === recordId ? { ...x, templateId: id } : x)),
+  }));
+  return id;
+}
+
+/** The exercise the next set belongs to: the current one if it has sets left,
+ * otherwise the next pending exercise. */
+export function upNextExercise(w = state.active) {
+  if (!w) return null;
+  const cur = w.exercises[w.currentIndex];
+  if (cur && cur.status === 'pending' && nextSetIndex(cur) >= 0) return cur;
+  const n = nextPendingIndex(w, w.currentIndex);
+  return n == null ? null : w.exercises[n];
 }
 
 export function nextUpDescription(w = state.active) {
@@ -355,7 +387,7 @@ export function finishWorkout() {
     minutes: durationS / 60, weightKg: state.settings.bodyWeightKg, age: state.settings.age, sex: state.settings.sex,
   });
   const record = {
-    id: uid(), name: w.name, templateId: w.templateId, startedAt: w.startedAt, endedAt, duration: durationS,
+    id: uid(), name: w.name, templateId: w.templateId, quick: !w.templateId, startedAt: w.startedAt, endedAt, duration: durationS,
     exercises, finishedEarly: !w.exercises.every(isFinished),
     calories: est.kcal, caloriesSource: est.source, watchCalories: null, avgHeartRate: null,
   };

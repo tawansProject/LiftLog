@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { pop } from './nav.js';
 import { GROUPS, groupTotals } from './lib/muscles.js';
 import { capitalize, SET_KINDS } from './lib/format.js';
+import { bodyHeat, shapes, smoothPath, SILHOUETTE, REGION_LABELS } from './lib/bodymap.js';
 
 export function TopBar({ title, left, right, onBack }) {
   return (
@@ -21,10 +22,76 @@ export function BottomBar({ children }) {
   return <div class="bottom-bar"><div>{children}</div></div>;
 }
 
-export function Thumb({ src, name, lg, onClick }) {
-  const [failed, setFailed] = useState(false);
-  if (!src || failed) return <div class={`thumb ph ${lg ? 'lg' : ''}`} onClick={onClick}>{(name || '?').charAt(0).toUpperCase()}</div>;
-  return <img class={`thumb ${lg ? 'lg' : ''}`} src={src} alt={name} loading="lazy" onError={() => setFailed(true)} onClick={onClick} />;
+/** Where to try loading an exercise GIF from, in order: the saved link (upgraded
+ * to https), then our cached proxy, which looks up the exercise's current link by id. */
+export function gifSources(src, id) {
+  const list = [];
+  let direct = typeof src === 'string' ? src.trim() : '';
+  if (direct.startsWith('//')) direct = `https:${direct}`;
+  if (direct.startsWith('http://')) direct = `https://${direct.slice(7)}`;
+  if (direct.startsWith('https://')) list.push(direct);
+  if (id && !String(id).startsWith('custom-')) list.push(`/api/gif?id=${encodeURIComponent(id)}`);
+  return list;
+}
+
+/** Exercise GIF. Falls back to the proxy when the saved link fails, and a failed
+ * tile can be tapped to try again. */
+export function Thumb({ src, id, name, lg, onClick }) {
+  const sources = gifSources(src, id);
+  const key = `${src}|${id}`;
+  // Derived from the props (not reset in an effect) so a fast failure can't be undone.
+  const [saved, setSaved] = useState({ key, index: 0, attempt: 0 });
+  const st = saved.key === key ? saved : { key, index: 0, attempt: 0 };
+  const cls = `thumb ${lg ? 'lg' : ''}`;
+  const current = sources[st.index];
+  if (!current) {
+    const canRetry = sources.length > 0;
+    return (
+      <div class={`${cls} ph`} title={canRetry ? 'Tap to retry' : undefined}
+        onClick={(e) => { if (canRetry) { e.stopPropagation(); setSaved({ key, index: 0, attempt: st.attempt + 1 }); } else onClick?.(e); }}>
+        {(name || '?').charAt(0).toUpperCase()}{canRetry && <span class="retry">↻</span>}
+      </div>
+    );
+  }
+  const url = st.attempt ? `${current}${current.includes('?') ? '&' : '?'}retry=${st.attempt}` : current;
+  return <img key={url} class={cls} src={url} alt="" loading={lg ? 'eager' : 'lazy'} decoding="async"
+    onError={() => setSaved({ ...st, index: st.index + 1 })} onClick={onClick} />;
+}
+
+/** Front and back body figures with the worked muscles highlighted. */
+export function BodyMap({ loads }) {
+  const heat = bodyHeat(loads);
+  const fill = (region) => {
+    const h = region && heat[region];
+    if (!region) return 'var(--muscle-idle-body)';
+    if (h?.primary > 0) return `rgba(255, 85, 63, ${0.55 + 0.45 * h.share})`;
+    if (h?.secondary > 0) return `rgba(255, 168, 74, ${0.55 + 0.35 * h.share})`;
+    return 'var(--muscle-idle)';
+  };
+  const worked = Object.keys(heat).filter((r) => heat[r].score > 0).sort((a, b) => heat[b].score - heat[a].score);
+  const label = worked.length ? `Body map. Worked: ${worked.map((r) => REGION_LABELS[r]).join(', ')}` : 'Body map: no muscles yet';
+  return (
+    <div class="bodymap" role="img" aria-label={label}>
+      <div class="figures">
+        {['front', 'back'].map((side) => (
+          <figure key={side}>
+            <svg viewBox="0 0 200 420">
+              <path d={smoothPath(SILHOUETTE)} fill="var(--muscle-silhouette)" />
+              {shapes(side).map((s, i) => (s.ellipse
+                ? <ellipse key={i} cx={s.ellipse[0]} cy={s.ellipse[1]} rx={s.ellipse[2]} ry={s.ellipse[3]} fill={fill(null)} stroke="var(--bg)" stroke-width="1.6" />
+                : <path key={i} d={s.d} fill={fill(s.region)} stroke="var(--bg)" stroke-width="1.6" stroke-linejoin="round" />))}
+            </svg>
+            <figcaption>{side === 'front' ? 'Front' : 'Back'}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <div class="legend">
+        <span><i style={{ background: 'var(--muscle-hot)' }} />Main target</span>
+        <span><i style={{ background: 'var(--muscle-warm)' }} />Also worked</span>
+        <span><i style={{ background: 'var(--muscle-idle)' }} />Not worked</span>
+      </div>
+    </div>
+  );
 }
 
 export function MuscleChips({ muscles, secondary = [] }) {

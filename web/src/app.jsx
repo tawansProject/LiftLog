@@ -11,7 +11,7 @@ import { HistoryTab } from './views/History.jsx';
 import { SettingsTab, WatchGuide } from './views/Settings.jsx';
 import { unlockAudio } from './lib/sound.js';
 
-const TABS = [['workouts', 'Workouts'], ['progress', 'Progress'], ['history', 'History'], ['settings', 'Settings']];
+const TABS = [['workouts', 'Workouts'], ['progress', 'Progress'], ['history', 'Sessions'], ['settings', 'Settings']];
 
 const PAGES = {
   template: TemplateDetail, builder: Builder, review: Review, search: Search, config: ExerciseConfig,

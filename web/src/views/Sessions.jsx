@@ -1,21 +1,29 @@
-import { useStore, setState, getState, saveTemplate, deleteTemplate, duplicateTemplate, startWorkout } from '../lib/store.js';
+import { useStore, setState, getState, saveTemplate, deleteTemplate, duplicateTemplate, startWorkout, startQuickWorkout } from '../lib/store.js';
 import { push, pop, clear, toast } from '../nav.js';
-import { TopBar, Page, BottomBar, Thumb, MuscleOverview, MuscleChips } from '../components.jsx';
+import { TopBar, Page, BottomBar, Thumb, MuscleOverview, MuscleChips, BodyMap } from '../components.jsx';
 import { loadsPlanned, groupTotals, GROUPS } from '../lib/muscles.js';
 import { setSummary, rest, uid, dateLabel } from '../lib/format.js';
 import { suggestionFor } from '../lib/history.js';
 import { ACTIONS, isChange } from '../lib/progression.js';
 import { duration } from '../lib/format.js';
 
+/** Workouts tab. Two ways to train:
+ * - Quick session: starts now, exercises are added on the go, saved as a session when finished.
+ * - Workout plans: reusable, editable templates. Each start is recorded as a session. */
 export function SessionsTab() {
   const s = useStore();
   const lastDone = (t) => {
     const r = s.records.filter((x) => x.templateId === t.id).sort((a, b) => b.startedAt - a.startedAt)[0];
     return r ? `Last done ${dateLabel(r.startedAt)}` : 'Not done yet';
   };
-  const newSession = () => {
+  const newPlan = () => {
     setState({ draft: { id: uid(), name: '', items: [], isNew: true } });
     push({ type: 'builder' });
+  };
+  const quick = () => {
+    startQuickWorkout();
+    setState({ workoutHidden: false });
+    push({ type: 'search', mode: 'workout' }); // straight to picking the first exercise
   };
   return (
     <div class="screen">
@@ -25,16 +33,28 @@ export function SessionsTab() {
           <div class="row"><div class="grow"><div class="bold">Workout in progress</div><div class="small muted">{s.active.name} · started {duration((Date.now() - s.active.startedAt) / 1000)} ago</div></div><span class="link">Resume ›</span></div>
         </button>
       )}
-      <button class="btn mb8" onClick={newSession}>＋ New session</button>
-      <h2>Your sessions</h2>
+      <div class="start-grid">
+        <button class="start-card hero" disabled={!!s.active} onClick={quick}>
+          <span class="start-icon">⚡</span>
+          <span class="bold">Quick session</span>
+          <span class="small">Start now, add exercises as you go</span>
+        </button>
+        <button class="start-card" onClick={newPlan}>
+          <span class="start-icon">📋</span>
+          <span class="bold">Workout plan</span>
+          <span class="small">Build a reusable template</span>
+        </button>
+      </div>
+      {s.active && <p class="small muted">Finish the workout in progress before starting a quick session.</p>}
+      <h2>Workout plans</h2>
       {!s.templates.length && (
-        <div class="empty"><div class="icon">🏋️</div><p>No sessions yet.</p><p class="small">Create one: search exercises, set your sets, reps and rest, then save it to reuse anytime.</p></div>
+        <div class="empty"><div class="icon">🏋️</div><p>No workout plans yet.</p><p class="small">A plan is a reusable template: search exercises, set your sets, reps and rest, then start it any time. Each run is recorded under Sessions.</p></div>
       )}
       {[...s.templates].sort((a, b) => b.updatedAt - a.updatedAt).map((t) => {
         const groups = groupTotals(loadsPlanned(t.items)).slice(0, 4);
         return (
           <button class="card tap" key={t.id} onClick={() => push({ type: 'template', id: t.id })}>
-            <div class="row between"><h3 class="ellipsis">{t.name || 'Untitled session'}</h3><span class="faint">›</span></div>
+            <div class="row between"><h3 class="ellipsis">{t.name || 'Untitled plan'}</h3><span class="faint">›</span></div>
             <div class="small muted mb8">{t.items.length} exercise{t.items.length === 1 ? '' : 's'} · {lastDone(t)}</div>
             <div class="gap8">{groups.map((g) => <span class="chip" key={g.group}><span class="dot" style={{ background: GROUPS[g.group].color }} />{GROUPS[g.group].label}</span>)}</div>
           </button>
@@ -64,7 +84,7 @@ export function TemplateDetail({ id }) {
         return (
           <div class="card" key={p.id}>
             <div class="row">
-              <Thumb src={p.gifUrl} name={p.name} onClick={() => push({ type: 'gif', src: p.gifUrl, name: p.name })} />
+              <Thumb src={p.gifUrl} id={p.exerciseId} name={p.name} onClick={() => push({ type: 'gif', src: p.gifUrl, id: p.exerciseId, name: p.name })} />
               <div class="col grow">
                 <div class="bold">{i + 1}. {p.name}</div>
                 <div class="small muted">{setSummary(p)} · rest {rest(p.restBetweenSets)}</div>
@@ -74,22 +94,23 @@ export function TemplateDetail({ id }) {
           </div>
         );
       })}
-      <h2>Muscles this session hits</h2>
+      <h2>Muscles you'll hit</h2>
+      <div class="card"><BodyMap loads={loadsPlanned(t.items)} /></div>
       <div class="card"><MuscleOverview loads={loadsPlanned(t.items)} /></div>
       <div class="gap8 mt16">
-        <button class="btn secondary small" onClick={() => { duplicateTemplate(t.id); toast('Session duplicated'); pop(); }}>Duplicate</button>
+        <button class="btn secondary small" onClick={() => { duplicateTemplate(t.id); toast('Plan duplicated'); pop(); }}>Duplicate</button>
         <button class="btn danger small" onClick={() => { if (confirm(`Delete "${t.name}"? Your workout history stays.`)) { deleteTemplate(t.id); pop(); } }}>Delete</button>
       </div>
-      <BottomBar><button class="btn" disabled={!t.items.length} onClick={start}>▶ Start workout</button></BottomBar>
+      <BottomBar><button class="btn" disabled={!t.items.length} onClick={start}>▶ Start session</button></BottomBar>
     </Page>
   );
 }
 
-export function GifPage({ src, name }) {
+export function GifPage({ src, id, name }) {
   return (
     <Page>
       <TopBar title={name} />
-      <Thumb src={src} name={name} lg />
+      <Thumb src={src} id={id} name={name} lg />
     </Page>
   );
 }
@@ -108,19 +129,19 @@ export function Builder() {
   if (!d) return null;
   const setDraft = (patch) => setState((st) => ({ draft: { ...st.draft, ...patch } }));
   const cancel = () => {
-    if (d.items.length && !confirm('Discard changes to this session?')) return;
+    if (d.items.length && !confirm('Discard changes to this plan?')) return;
     setState({ draft: null }); pop();
   };
   return (
     <Page>
-      <TopBar title={d.isNew ? 'New session' : 'Edit session'} left={<button class="link" onClick={cancel}>Cancel</button>} />
-      <input placeholder="Session name, e.g. Session A: Push" value={d.name} onInput={(e) => setDraft({ name: e.currentTarget.value })} />
+      <TopBar title={d.isNew ? 'New workout plan' : 'Edit workout plan'} left={<button class="link" onClick={cancel}>Cancel</button>} />
+      <input placeholder="Plan name, e.g. Push day" value={d.name} onInput={(e) => setDraft({ name: e.currentTarget.value })} />
       <h2>Exercises</h2>
       {!d.items.length && <p class="muted small">Search the Exercise Library and add as many exercises as you like. Each one shows the muscles it targets.</p>}
       {d.items.map((p, i) => (
         <div class="card" key={p.id}>
           <div class="row">
-            <Thumb src={p.gifUrl} name={p.name} />
+            <Thumb src={p.gifUrl} id={p.exerciseId} name={p.name} />
             <button class="col grow" style={{ textAlign: 'left' }} onClick={() => push({ type: 'config', mode: 'edit', plan: p })}>
               <div class="bold ellipsis">{i + 1}. {p.name}</div>
               <div class="small muted">{setSummary(p)}</div>
@@ -149,7 +170,7 @@ export function Review() {
   const s = useStore();
   const d = s.draft;
   if (!d) return null;
-  const name = d.name.trim() || `Session ${String.fromCharCode(65 + (s.templates.length % 26))}`;
+  const name = d.name.trim() || `Plan ${String.fromCharCode(65 + (s.templates.length % 26))}`;
   const save = (andStart) => {
     const t = { id: d.id, name, items: d.items, createdAt: d.createdAt };
     saveTemplate(t);
@@ -162,28 +183,29 @@ export function Review() {
     } else {
       push({ type: 'template', id: d.id });
     }
-    toast('Session saved');
+    toast('Plan saved');
   };
   const totalSets = d.items.reduce((t, p) => t + p.sets.length, 0);
   return (
     <Page>
-      <TopBar title="Confirm session" />
+      <TopBar title="Confirm plan" />
       <h1 style={{ fontSize: 26 }}>{name}</h1>
       <p class="muted">{d.items.length} exercises · {totalSets} sets</p>
-      <h2>Muscles you'll work</h2>
+      <h2>Muscles you'll hit</h2>
+      <div class="card"><BodyMap loads={loadsPlanned(d.items)} /></div>
       <div class="card"><MuscleOverview loads={loadsPlanned(d.items)} /></div>
       <h2>Order</h2>
       <div class="card">
         {d.items.map((p, i) => (
           <div class="list-btn" key={p.id}>
-            <Thumb src={p.gifUrl} name={p.name} />
+            <Thumb src={p.gifUrl} id={p.exerciseId} name={p.name} />
             <div class="col grow"><div class="bold ellipsis">{i + 1}. {p.name}</div><div class="small muted">{setSummary(p)}</div></div>
           </div>
         ))}
       </div>
       <BottomBar>
-        <button class="btn secondary" onClick={() => save(false)}>Save</button>
-        <button class="btn" onClick={() => save(true)}>Save & start</button>
+        <button class="btn secondary" onClick={() => save(false)}>Save plan</button>
+        <button class="btn" onClick={() => save(true)}>Save & start session</button>
       </BottomBar>
     </Page>
   );

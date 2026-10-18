@@ -11,7 +11,7 @@ export function HistoryTab() {
   const [view, setView] = useState('dashboard');
   return (
     <div class="screen">
-      <h1>History</h1>
+      <h1>Sessions</h1>
       <Segmented options={[['dashboard', 'Dashboard'], ['list', 'List']]} value={view} onChange={setView} />
       <div class="mt16">{view === 'dashboard' ? <Dashboard /> : <RecordList />}</div>
     </div>
@@ -78,7 +78,7 @@ function StrengthProgress({ records, from }) {
 function RecordList() {
   const s = useStore();
   const sorted = [...s.records].sort((a, b) => b.startedAt - a.startedAt);
-  if (!sorted.length) return <div class="empty"><div class="icon">📋</div><p>No workouts yet. Finished workouts show up here.</p></div>;
+  if (!sorted.length) return <div class="empty"><div class="icon">📋</div><p>No sessions yet. Finished sessions, from a plan or quick, show up here.</p></div>;
   const groups = [];
   for (const r of sorted) {
     const key = new Date(r.startedAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -90,7 +90,7 @@ function RecordList() {
       <h2>{g.key}</h2>
       {g.items.map((r) => (
         <button class="card tap" key={r.id} onClick={() => push({ type: 'record', id: r.id })}>
-          <div class="row between"><span class="bold ellipsis">{r.name}</span><span class="small muted">{dateLabel(r.startedAt)}</span></div>
+          <div class="row between"><span class="bold ellipsis">{r.name}{r.quick && <span class="badge-quick">⚡ Quick</span>}</span><span class="small muted">{dateLabel(r.startedAt)}</span></div>
           <div class="small muted">{duration(r.duration)} · {volume(recordVolume(r))} · {r.exercises.reduce((t, e) => t + doneSets(e).length, 0)} sets · {Math.round(r.calories || 0)} kcal{r.exercises.some((e) => e.injured) ? ' · ⚠︎' : ''}</div>
         </button>
       ))}

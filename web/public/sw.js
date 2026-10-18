@@ -1,6 +1,7 @@
 // LiftLog service worker: offline app shell + rest alerts (Web Push).
 const SHELL = 'liftlog-shell-v1';
 const REST_KEY = '/__liftlog/rest-id';
+const GIFS = 'liftlog-gifs-v1';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/icon-192.png'])).then(() => self.skipWaiting()));
@@ -15,6 +16,18 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+  if (e.request.method === 'GET' && url.origin === location.origin && url.pathname === '/api/gif') {
+    // Exercise animations: cache first so they show offline and load instantly next time.
+    e.respondWith(caches.open(GIFS).then(async (c) => {
+      const key = `${url.pathname}?id=${url.searchParams.get('id')}`;
+      const hit = await c.match(key);
+      if (hit) return hit;
+      const r = await fetch(e.request);
+      if (r.ok) c.put(key, r.clone());
+      return r;
+    }));
+    return;
+  }
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   if (e.request.mode === 'navigate') {
     // Network first for the page so updates arrive; cached copy when offline.

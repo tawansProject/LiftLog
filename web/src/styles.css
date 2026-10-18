@@ -1,14 +1,22 @@
 :root {
-  --bg: #0a1730;
-  --card: #13284a;
-  --raised: #1c3764;
-  --accent: #4d8dff;
+  /* Dark blue theme, tuned for contrast: deeper background, brighter cards and
+     accent, and secondary text that stays readable. */
+  --bg: #061024;
+  --card: #152d55;
+  --raised: #204075;
+  --accent: #5fa0ff;
+  --accent-soft: rgba(95, 160, 255, 0.24);
   --white: #ffffff;
-  --on-white: #0a1730;
+  --on-white: #061024;
   --text: #ffffff;
-  --muted: rgba(255, 255, 255, 0.62);
-  --faint: rgba(255, 255, 255, 0.38);
-  --outline: rgba(255, 255, 255, 0.12);
+  --muted: #c6d5ed;
+  --faint: #93a6c6;
+  --outline: rgba(255, 255, 255, 0.2);
+  --muscle-hot: #ff553f;
+  --muscle-warm: #ffa84a;
+  --muscle-idle: #2e4f86;
+  --muscle-idle-body: rgba(46, 79, 134, 0.7);
+  --muscle-silhouette: rgba(46, 79, 134, 0.38);
   --green: #51cf66;
   --red: #ff6b6b;
   --orange: #ffa94d;
@@ -83,7 +91,7 @@ p { margin: 0 0 10px; }
 .bottom-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
   padding: 12px 16px calc(var(--safe-bottom) + 12px);
-  background: linear-gradient(to top, var(--bg) 70%, rgba(10, 23, 48, 0));
+  background: linear-gradient(to top, var(--bg) 70%, rgba(6, 16, 36, 0));
 }
 .bottom-bar > div { max-width: 640px; margin: 0 auto; display: flex; gap: 10px; }
 
@@ -106,7 +114,7 @@ p { margin: 0 0 10px; }
 }
 .tabbar > div { display: flex; width: 100%; max-width: 640px; }
 .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; color: var(--faint); font-size: 11px; font-weight: 600; }
-.tabbar button.on { color: var(--white); }
+.tabbar button.on { color: var(--accent); }
 .tabbar svg { width: 26px; height: 26px; }
 
 .thumb { width: 56px; height: 56px; border-radius: 12px; background: #fff; object-fit: cover; flex-shrink: 0; }
@@ -179,7 +187,8 @@ p { margin: 0 0 10px; }
 .strip::-webkit-scrollbar { display: none; }
 .strip button { flex-shrink: 0; width: 62px; text-align: center; font-size: 11px; color: var(--muted); }
 .strip button .thumb { width: 54px; height: 54px; margin: 0 auto 4px; border: 2px solid transparent; }
-.strip button.cur .thumb { border-color: var(--white); }
+.strip button.cur .thumb { border-color: var(--accent); }
+.strip button.cur { color: var(--white); font-weight: 700; }
 .strip button.done .thumb { opacity: 0.45; }
 .list-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--outline); text-align: left; }
 .list-btn:first-child { border-top: 0; }
@@ -189,3 +198,36 @@ ol.instructions li { margin-bottom: 6px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 90px); z-index: 60; background: var(--white); color: var(--on-white); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; max-width: 90vw; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
 .set-row .stepper button { width: 30px; }
 .set-row .stepper input { padding: 8px 0; }
+
+/* Workouts tab: quick session / workout plan */
+.start-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+.start-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; min-height: 120px;
+  padding: 14px; border-radius: var(--radius); background: var(--raised); border: 1px solid var(--outline); color: var(--white);
+}
+.start-card.hero { background: var(--white); color: var(--on-white); border-color: var(--white); }
+.start-card .small { opacity: 0.8; }
+.start-card:disabled { opacity: 0.45; }
+.start-card:active { transform: scale(0.99); }
+.start-icon { font-size: 26px; margin-bottom: 4px; }
+.badge-quick { margin-left: 8px; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; vertical-align: middle; }
+.quick-start h3 { margin-top: 4px; }
+
+/* Exercise GIFs */
+.thumb.ph { position: relative; }
+.thumb .retry { position: absolute; right: 4px; bottom: 2px; font-size: 12px; color: var(--muted); }
+.gif-hero .thumb.lg { max-height: 280px; cursor: zoom-in; }
+.gif-hero img.thumb.lg { background: #fff; }
+.rest .thumb { width: 52px; height: 52px; }
+
+/* Body map */
+.bodymap .figures { display: flex; justify-content: center; gap: 18px; }
+.bodymap figure { margin: 0; text-align: center; }
+.bodymap svg { height: 240px; width: auto; display: block; }
+.bodymap figcaption { font-size: 12px; font-weight: 700; color: var(--faint); margin-top: 4px; }
+.bodymap .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.bodymap .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+/* Contrast: current set and chips stand out more */
+.chip { border-color: rgba(255, 255, 255, 0.24); }
+.card.sug { border-left-width: 4px; }
