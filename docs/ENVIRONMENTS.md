@@ -38,12 +38,16 @@ can tell them apart, for example "LiftLog" and "LiftLog Staging".
 | Variable | Production | Preview (used by staging) |
 |---|---|---|
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Needed for rest alerts | Optional. Without them staging works but rest alerts are off. Use a separate key pair from production (`npx web-push generate-vapid-keys`) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or the `NEXT_PUBLIC_` versions), `POSTGRES_URL…` | From the `liftlog-prod` Supabase project | From the `liftlog-staging` Supabase project |
 
 Vercel applies **Preview** variables to every non-production branch. To give staging its own values that other
 previews don't get, add the variable to Preview and pick the `staging` branch in the "Git branch" field.
 
 `VERCEL_ENV`, `VERCEL_GIT_COMMIT_REF` and `VERCEL_GIT_COMMIT_SHA` are set by Vercel automatically and are only
 used to show the environment badge (`web/vite.config.js`, `web/src/lib/env.js`).
+
+Accounts and sync: the Supabase variables are added by Vercel's Supabase integration. Setup steps are in
+[`ACCOUNTS.md`](ACCOUNTS.md).
 
 ## Optional: nicer staging address
 

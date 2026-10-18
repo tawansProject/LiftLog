@@ -10,6 +10,14 @@ export default defineConfig({
       branch: process.env.VERCEL_GIT_COMMIT_REF || '',
       commit: process.env.VERCEL_GIT_COMMIT_SHA || '',
     }),
+    // Supabase project for sign-in and sync. Vercel's Supabase integration sets these per
+    // environment (production / preview). The anon key is meant to be public: row-level
+    // security in supabase/schema.sql is what protects each user's data.
+    __SUPABASE__: JSON.stringify({
+      url: process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+      key: process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+        || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '',
+    }),
   },
   server: {
     proxy: {
