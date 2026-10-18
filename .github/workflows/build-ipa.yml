@@ -1,0 +1,66 @@
+# Builds LiftLog on a GitHub-hosted Mac and uploads an .ipa you can sideload from Windows
+# (see docs/WINDOWS_INSTALL.md). Runs on every push to main, and on demand from the Actions tab.
+name: Build iPhone app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Build iPhone + Watch app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project FitnessApp.xcodeproj \
+            -target FitnessApp \
+            -configuration Release \
+            -sdk iphoneos \
+            SYMROOT="$PWD/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -100; tail -40 build.log; exit 1; }
+          grep -c "warning:" build.log || true
+
+      - name: Ad-hoc sign with entitlements and package .ipa
+        run: |
+          set -e
+          APP="$(ls -d build/Release-iphoneos/*.app | head -1)"
+          echo "App bundle: $APP"
+          ls "$APP/Watch" || echo "No Watch app embedded"
+          # Embed the HealthKit entitlements so the sideloading tool carries them into its signature.
+          for W in "$APP"/Watch/*.app; do
+            [ -d "$W" ] && codesign --force --sign - --entitlements Config/FitnessWatch.entitlements "$W"
+          done
+          codesign --force --sign - --entitlements Config/FitnessApp.entitlements "$APP"
+          mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          (cd out && zip -qry LiftLog.ipa Payload)
+          ls -lh out/LiftLog.ipa
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiftLog-ipa
+          path: out/LiftLog.ipa
+          retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 14

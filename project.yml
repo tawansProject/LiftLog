@@ -1,0 +1,50 @@
+# Optional: regenerate FitnessApp.xcodeproj with XcodeGen (brew install xcodegen; xcodegen).
+# The checked-in .xcodeproj already works in Xcode 16+, so this is only a fallback.
+name: FitnessApp
+options:
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    BUNDLE_ID_PREFIX: com.tawan
+    DEVELOPMENT_TEAM: ""
+targets:
+  FitnessApp:
+    type: application
+    platform: iOS
+    sources: [FitnessApp, Shared]
+    dependencies:
+      - target: FitnessWatch
+    entitlements:
+      path: Config/FitnessApp.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).liftlog
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: LiftLog
+        INFOPLIST_KEY_NSHealthShareUsageDescription: Reads heart rate, active energy and body data to estimate calories burned during your workouts.
+        INFOPLIST_KEY_NSHealthUpdateUsageDescription: Saves your strength workouts, heart rate and calories to Apple Health.
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  FitnessWatch:
+    type: application
+    platform: watchOS
+    sources: [FitnessWatch, Shared]
+    entitlements:
+      path: Config/FitnessWatch.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).liftlog.watchkitapp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Config/FitnessWatch-Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: LiftLog
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: $(BUNDLE_ID_PREFIX).liftlog
+        INFOPLIST_KEY_NSHealthShareUsageDescription: Reads heart rate and active energy during your workouts.
+        INFOPLIST_KEY_NSHealthUpdateUsageDescription: Saves your strength workouts, heart rate and calories to Apple Health.
+        SKIP_INSTALL: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
