@@ -240,6 +240,14 @@ export function skipRest() {
   if (state.active?.restEndsAt != null) mutate((w) => { w.restEndsAt = null; });
 }
 
+/** When the app comes back to the screen: if no rest is running any more, make sure
+ * no alert is still pending and none is left on screen. */
+export function syncRestAlerts() {
+  const w = state.active;
+  if (w && isResting(w)) return;
+  push.cancelRest();
+}
+
 /** Called by the UI timer when rest runs out while the app is open. */
 export function restFinished() {
   if (state.active?.restEndsAt != null) mutate((w) => { w.restEndsAt = null; });
@@ -305,6 +313,9 @@ export function addSet(ex, kind) {
 
 export function removeSet(ex, s) {
   mutate((w) => { const e = w.exercises[ex]; if (e && e.sets.length > 1) e.sets.splice(s, 1); });
+  // Removed the sets the rest was leading to: no "next set" alert.
+  const w = state.active;
+  if (w && isResting(w) && !w.restBetweenExercises && nextSetIndex(w.exercises[ex]) < 0) skipRest();
 }
 
 /** Applies an overload suggestion to the sets that aren't done yet. */
@@ -325,7 +336,10 @@ export const focusExercise = (ex) => mutate((w) => { w.currentIndex = ex; });
 export function requestFinishExercise(ex) {
   mutate((w) => { w.effortPendingIndex = ex; });
   const w = state.active;
-  if (!isResting(w) && nextPendingIndex(w, ex) != null) startRest(w.exercises[ex].restAfterExercise, true);
+  if (isResting(w) && w.restBetweenExercises) return; // already resting before the next exercise
+  // A "next set" rest no longer applies: rest before the next exercise, or stop if this was the last.
+  if (nextPendingIndex(w, ex) != null) startRest(w.exercises[ex].restAfterExercise, true);
+  else skipRest();
 }
 
 export function submitEffort(ex, effort, injured, note) {
@@ -353,12 +367,15 @@ export function cancelEffort() {
 }
 
 export function skipExercise(ex) {
+  const wasCurrent = state.active?.currentIndex === ex;
   mutate((w) => {
     w.exercises[ex].status = 'skipped';
     if (w.effortPendingIndex === ex) w.effortPendingIndex = null;
     const n = nextPendingIndex(w, ex);
     if (n != null) w.currentIndex = n;
   });
+  const w = state.active;
+  if (w && isResting(w) && ((wasCurrent && !w.restBetweenExercises) || !w.exercises.some((e) => e.status === 'pending'))) skipRest();
 }
 
 export function addExerciseToWorkout(planned) {

@@ -28,6 +28,13 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
+/* App shell: the page itself never scrolls (no rubber-band that drags the tab bar);
+   the tab content and each full-screen page scroll inside their own containers. */
+html, body { height: 100%; overflow: hidden; }
+body { position: fixed; inset: 0; }
+/* No double-tap zoom anywhere (taps also respond without the zoom delay). */
+html, body, .tab-scroll, .overlay, .sheet-bg, .sheet, button, a, input, select, textarea, label { touch-action: manipulation; }
+.tab-scroll { position: fixed; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   font-size: 16px; line-height: 1.35; -webkit-font-smoothing: antialiased;
@@ -36,6 +43,7 @@ body {
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; }
 input, select, textarea {
+  font-size: 16px; /* 16px or more: iOS doesn't zoom in when a field is focused */
   background: var(--raised); border: 1px solid var(--outline); border-radius: 12px; padding: 12px 14px; width: 100%;
   outline: none;
 }
@@ -47,7 +55,7 @@ h3 { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
 p { margin: 0 0 10px; }
 
 .screen { min-height: 100dvh; padding: calc(var(--safe-top) + 12px) 16px calc(var(--safe-bottom) + 96px); max-width: 640px; margin: 0 auto; }
-.overlay { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.overlay { position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 .overlay .screen { padding-bottom: calc(var(--safe-bottom) + 120px); }
 
 .topbar { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 4px; }
@@ -109,7 +117,7 @@ p { margin: 0 0 10px; }
 .segmented button.on { background: var(--white); color: var(--on-white); }
 
 .tabbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; display: flex; justify-content: center;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; transform: translateZ(0); display: flex; justify-content: center;
   background: var(--card); border-top: 1px solid var(--outline); padding-bottom: var(--safe-bottom);
 }
 .tabbar > div { display: flex; width: 100%; max-width: 640px; }
@@ -239,3 +247,14 @@ ol.instructions li { margin-bottom: 6px; }
   background: var(--orange); color: var(--on-white); pointer-events: none; white-space: nowrap;
 }
 .env-ribbon.preview, .env-ribbon.development { background: #b197fc; }
+
+/* Swipe-to-reveal rows (plans, sessions) */
+.swipe { position: relative; overflow: hidden; border-radius: var(--radius); margin-bottom: 12px; border: 1px solid var(--outline); background: var(--card); }
+.swipe .card { margin: 0; border: 0; border-radius: 0; }
+.swipe-content { position: relative; z-index: 1; touch-action: pan-y; transition: transform 0.22s ease; background: var(--card); }
+.swipe-content.dragging { transition: none; }
+.swipe-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
+.swipe-actions button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; color: #fff; }
+.swipe-actions svg { width: 22px; height: 22px; }
+.swipe-actions .edit { background: var(--accent); }
+.swipe-actions .delete { background: var(--red); }

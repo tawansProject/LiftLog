@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'preact/hooks';
-import { useStore } from './lib/store.js';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { useStore, syncRestAlerts } from './lib/store.js';
 import { useNav, setTab, setToaster } from './nav.js';
 import { Icon } from './components.jsx';
 import { SessionsTab, TemplateDetail, Builder, Review, GifPage } from './views/Sessions.jsx';
@@ -28,13 +28,19 @@ export function App() {
     const unlock = () => unlockAudio();
     document.addEventListener('touchend', unlock, { once: true });
     document.addEventListener('click', unlock, { once: true });
+    syncRestAlerts();
+    const onVisible = () => { if (document.visibilityState === 'visible') syncRestAlerts(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
-  useEffect(() => { window.scrollTo(0, 0); }, [nav.tab]);
+  const scroller = useRef(null);
+  useEffect(() => { scroller.current?.scrollTo(0, 0); }, [nav.tab]);
 
   const Tab = { workouts: SessionsTab, progress: ProgressTab, history: HistoryTab, settings: SettingsTab }[nav.tab];
   return (
     <>
-      <Tab />
+      {/* Only this area scrolls, so the tab bar never moves or bounces with the page. */}
+      <main class="tab-scroll" ref={scroller}><Tab /></main>
       <nav class="tabbar"><div>
         {TABS.map(([k, label]) => (
           <button key={k} class={nav.tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={k} />{label}</button>

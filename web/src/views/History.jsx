@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
-import { useStore } from '../lib/store.js';
-import { push } from '../nav.js';
-import { Segmented } from '../components.jsx';
+import { useStore, deleteRecord } from '../lib/store.js';
+import { push, toast } from '../nav.js';
+import { Segmented, SwipeRow } from '../components.jsx';
 import { LineChart } from '../charts.jsx';
 import { duration, volume, dateLabel, weight as fmtW } from '../lib/format.js';
 import { recordVolume, topSet, doneSets } from '../lib/models.js';
@@ -85,15 +85,20 @@ function RecordList() {
     if (groups[groups.length - 1]?.key !== key) groups.push({ key, items: [] });
     groups[groups.length - 1].items.push(r);
   }
-  return groups.map((g) => (
+  return [<p key="hint" class="small faint center">Swipe a session left to edit or delete it.</p>, ...groups.map((g) => (
     <div key={g.key}>
       <h2>{g.key}</h2>
       {g.items.map((r) => (
-        <button class="card tap" key={r.id} onClick={() => push({ type: 'record', id: r.id })}>
-          <div class="row between"><span class="bold ellipsis">{r.name}{r.quick && <span class="badge-quick">⚡ Quick</span>}</span><span class="small muted">{dateLabel(r.startedAt)}</span></div>
-          <div class="small muted">{duration(r.duration)} · {volume(recordVolume(r))} · {r.exercises.reduce((t, e) => t + doneSets(e).length, 0)} sets · {Math.round(r.calories || 0)} kcal{r.exercises.some((e) => e.injured) ? ' · ⚠︎' : ''}</div>
-        </button>
+        <SwipeRow key={r.id} actions={[
+          { kind: 'edit', label: 'Edit', onClick: () => push({ type: 'record', id: r.id }) },
+          { kind: 'delete', label: 'Delete', onClick: () => { if (confirm(`Delete "${r.name}" from ${dateLabel(r.startedAt)}?`)) { deleteRecord(r.id); toast('Session deleted'); } } },
+        ]}>
+          <button class="card tap" onClick={() => push({ type: 'record', id: r.id })}>
+            <div class="row between"><span class="bold ellipsis">{r.name}{r.quick && <span class="badge-quick">⚡ Quick</span>}</span><span class="small muted">{dateLabel(r.startedAt)}</span></div>
+            <div class="small muted">{duration(r.duration)} · {volume(recordVolume(r))} · {r.exercises.reduce((t, e) => t + doneSets(e).length, 0)} sets · {Math.round(r.calories || 0)} kcal{r.exercises.some((e) => e.injured) ? ' · ⚠︎' : ''}</div>
+          </button>
+        </SwipeRow>
       ))}
     </div>
-  ));
+  ))];
 }

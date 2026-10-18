@@ -8,6 +8,8 @@ reach Apple Watch. It replaces the native SwiftUI app in the repo root, which is
 - **Hosting:** Vercel (project root directory `web`). Functions in `api/`:
   - `api/exercises.js` proxies the free hosted exercise API (`oss.exercisedb.dev/api/v1`, no key) and caches it.
   - `api/push/schedule.js` waits until a rest ends and sends a Web Push; `api/push/key.js` serves the public key.
+    Skipping, replacing or ending a rest posts `{ cancel: restId }` to the same function; it's recorded in Vercel's
+    runtime cache and the waiting job checks it before sending, so cancelled alerts never arrive.
   - Env vars: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (generate with `npx web-push generate-vapid-keys`).
 - **Environments:** `main` → production, `staging` → staging URL, other branches → previews. See
   [`docs/ENVIRONMENTS.md`](../docs/ENVIRONMENTS.md).
