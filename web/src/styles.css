@@ -29,10 +29,16 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 /* App shell: every screen is a fixed layer that scrolls on its own, so the page
-   itself has nothing to scroll and can't rubber-band the tab bar. No height:100% on
-   html/body: in an iOS Home Screen app with a translucent status bar that comes out
-   short by the status bar's height and leaves a gap under the tab bar. */
-html, body { overflow: hidden; overscroll-behavior: none; }
+   itself has nothing to scroll and can't rubber-band the tab bar. */
+html, body { overscroll-behavior: none; }
+/* iOS 26 Home Screen apps get a viewport that's short by the status bar height whenever
+   the page is shorter than the screen (WebKit bug 301108), and fixed content (the tab
+   bar) stops at that short edge, leaving a strip at the bottom. Making the page at least
+   screen-tall gives the full viewport. min() caps the growth at the top inset, so the
+   page can't scroll where the status bar is opaque (WebKit bug 316008). */
+@media (display-mode: standalone) {
+  html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top))); }
+}
 /* No double-tap zoom anywhere (taps also respond without the zoom delay). */
 html, body, .tab-scroll, .overlay, .sheet-bg, .sheet, button, a, input, select, textarea, label { touch-action: manipulation; }
 .tab-scroll { position: fixed; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
