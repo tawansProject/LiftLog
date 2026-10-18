@@ -3,6 +3,8 @@ import SwiftUI
 /// Dark blue theme matching the iPhone app.
 enum WatchTheme {
     static let accent = Color(red: 0.302, green: 0.553, blue: 1.0)
+    /// Navy text on white buttons.
+    static let ink = Color(red: 0.039, green: 0.090, blue: 0.180)
     static let background = LinearGradient(colors: [Color(red: 0.075, green: 0.157, blue: 0.290),
                                                      Color(red: 0.020, green: 0.050, blue: 0.110)],
                                            startPoint: .top, endPoint: .bottom)
@@ -133,9 +135,11 @@ struct CurrentSetView: View {
                     } label: {
                         Label(store.isSending ? "Sending…" : "Done", systemImage: "checkmark")
                             .font(.headline)
+                            .foregroundStyle(WatchTheme.ink)
                             .frame(maxWidth: .infinity)
                     }
-                    .tint(.green)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
                     .disabled(store.isSending)
                 }
 
@@ -213,9 +217,12 @@ struct EffortRatingView: View {
             Button {
                 store.send(.rateExercise, extra: [WatchKeys.effort: effort, WatchKeys.injured: injured])
             } label: {
-                Text(store.isSending ? "Sending…" : "Save & next").frame(maxWidth: .infinity)
+                Text(store.isSending ? "Sending…" : "Save & next")
+                    .foregroundStyle(WatchTheme.ink)
+                    .frame(maxWidth: .infinity)
             }
-            .tint(.blue)
+            .buttonStyle(.borderedProminent)
+            .tint(.white)
             .disabled(store.isSending)
         }
     }
@@ -255,10 +262,10 @@ struct RestView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 ZStack {
-                    Circle().stroke(Color.orange.opacity(0.25), lineWidth: 8)
+                    Circle().stroke(Color.white.opacity(0.2), lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: remaining / total)
-                        .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     Text(timerInterval: Date()...max(end, Date()), countsDown: true)
                         .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())

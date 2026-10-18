@@ -196,7 +196,7 @@ struct ReviewSessionView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.white)
                     .disabled(engine.isActive)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())

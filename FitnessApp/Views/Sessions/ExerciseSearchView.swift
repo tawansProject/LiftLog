@@ -100,9 +100,9 @@ struct ExerciseSearchView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("ExerciseDB")
+                    Text("Exercise Library")
                 } footer: {
-                    Text("Exercise data from ExerciseDB (github.com/ExerciseDB/exercisedb-api).")
+                    Text("Search more than 1,500 exercises with animations.")
                 }
     
                 Section {
@@ -179,7 +179,7 @@ struct ExerciseSearchView: View {
         } catch is CancellationError {
         } catch let error as URLError where error.code == .cancelled {
         } catch {
-            errorMessage = "Couldn't reach ExerciseDB. Showing exercises saved on this phone."
+            errorMessage = "Couldn't reach the Exercise Library. Showing exercises saved on this phone."
         }
     }
 }

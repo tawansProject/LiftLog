@@ -77,8 +77,8 @@ enum ExerciseDBError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .badStatus(let code):
-            return code == 429 ? "ExerciseDB is rate limiting requests. Try again in a minute."
-                               : "ExerciseDB returned an error (\(code))."
+            return code == 429 ? "The exercise library is busy. Try again in a minute."
+                               : "The exercise library returned an error (\(code))."
         }
     }
 }

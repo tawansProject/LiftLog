@@ -92,7 +92,7 @@ struct SettingsView: View {
                     } header: {
                         Text("Exercise library")
                     } footer: {
-                        Text("Exercise data and animations from ExerciseDB (github.com/ExerciseDB/exercisedb-api), free tier at oss.exercisedb.dev.")
+                        Text("Downloads every exercise and its details so search works without internet. Animations still load online.")
                     }
                 }
                 .listRowBackground(Theme.card)

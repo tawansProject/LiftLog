@@ -26,7 +26,7 @@ struct SessionListView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                 Button("Create session") { builder = .new }
-                                    .buttonStyle(.borderedProminent)
+                                    .buttonStyle(.white)
                             }
                             .padding(.vertical, 6)
                         }
@@ -146,7 +146,7 @@ struct SessionDetailView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.white)
                     .disabled(engine.isActive || items.isEmpty)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())

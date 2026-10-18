@@ -8,6 +8,11 @@ enum Theme {
     static let card = Color(red: 0.075, green: 0.157, blue: 0.290)         // #13284A
     static let cardRaised = Color(red: 0.110, green: 0.216, blue: 0.392)   // #1C3764
     static let accent = Color(red: 0.302, green: 0.553, blue: 1.0)         // #4D8DFF
+    /// White highlight surfaces and buttons, with navy text on them.
+    static let highlight = Color.white
+    static let onHighlight = Color(red: 0.039, green: 0.090, blue: 0.180)  // navy text on white
+    /// Hairline outline that lifts cards off the navy background.
+    static let outline = Color.white.opacity(0.12)
 
     /// Navigation and tab bars in the same navy.
     static func applyAppearance() {
@@ -27,6 +32,32 @@ enum Theme {
         UITabBar.appearance().standardAppearance = tab
         UITabBar.appearance().scrollEdgeAppearance = tab
     }
+}
+
+/// Primary action button: solid white with navy text.
+struct WhiteButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        WhiteButton(configuration: configuration)
+    }
+
+    private struct WhiteButton: View {
+        var configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.headline)
+                .foregroundStyle(Theme.onHighlight)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(Theme.highlight.opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35),
+                            in: RoundedRectangle(cornerRadius: 14))
+        }
+    }
+}
+
+extension ButtonStyle where Self == WhiteButtonStyle {
+    static var white: WhiteButtonStyle { WhiteButtonStyle() }
 }
 
 extension View {

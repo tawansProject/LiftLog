@@ -101,7 +101,7 @@ struct LiveWorkoutView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.white)
                     .tint(.green)
                 }
                 ExerciseQueue(workout: workout)
@@ -125,7 +125,7 @@ struct ElapsedHeader: View {
         let setsTotal = workout.exercises.reduce(0) { $0 + $1.sets.count }
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Total time").font(.caption).foregroundStyle(.secondary)
+                Text("Total time").font(.caption).foregroundStyle(Theme.onHighlight.opacity(0.6))
                 Text(workout.startedAt, style: .timer)
                     .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
             }
@@ -133,13 +133,16 @@ struct ElapsedHeader: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Exercise \(workout.currentIndex + 1) of \(workout.exercises.count)")
                     .font(.subheadline.bold())
-                Text("\(setsDone)/\(setsTotal) sets").font(.caption).foregroundStyle(.secondary)
+                Text("\(setsDone)/\(setsTotal) sets").font(.caption).foregroundStyle(Theme.onHighlight.opacity(0.6))
                 ProgressView(value: Double(setsDone), total: Double(max(setsTotal, 1)))
+                    .tint(Theme.accent)
                     .frame(width: 110)
             }
         }
+        .foregroundStyle(Theme.onHighlight)
         .padding()
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        // White hero card: the one bright surface on the workout screen.
+        .background(Theme.highlight, in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -198,7 +201,7 @@ struct CurrentExerciseCard: View {
                 } label: {
                     Label("Done with exercise", systemImage: "checkmark.seal.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.white)
                 .disabled(!exercise.hasProgress)
             }
             Text("Rest \(Format.rest(exercise.restBetweenSets)) between sets, \(Format.rest(exercise.restAfterExercise)) before the next exercise")
@@ -266,7 +269,7 @@ struct LiveSetRow: View {
             } label: {
                 Image(systemName: set.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 34))
-                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Color.accentColor : Color.secondary))
+                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Theme.highlight : Color.secondary))
             }
             .buttonStyle(.plain)
         }
@@ -373,7 +376,7 @@ struct RestBanner: View {
                         .buttonStyle(.bordered)
                     Spacer()
                     Button("Skip rest") { engine.skipRest() }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.white)
                         .tint(.orange)
                 }
             }
