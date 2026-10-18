@@ -26,7 +26,7 @@ struct MuscleChips: View {
             .padding(.horizontal, compact ? 6 : 8)
             .padding(.vertical, compact ? 2 : 4)
             .foregroundStyle(filled ? Color.white : color)
-            .background(filled ? color : color.opacity(0.12), in: Capsule())
+            .background(filled ? color : color.opacity(0.25), in: Capsule())
             .overlay(Capsule().stroke(color.opacity(filled ? 0 : 0.6), lineWidth: 1))
     }
 }
@@ -68,25 +68,32 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Animated GIF from ExerciseDB, decoded with ImageIO and cached in memory.
+/// Animated exercise GIF, decoded with ImageIO and cached in memory and on disk.
+/// Pass `exerciseId` so a missing or broken link can be looked up again.
 struct ExerciseGIFView: View {
     var urlString: String?
+    var exerciseId: String? = nil
     @State private var image: UIImage?
+    @State private var failed = false
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(Theme.card)
+            RoundedRectangle(cornerRadius: 12).fill(Color.white)
             if let image {
                 AnimatedImageView(image: image)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
+            } else if failed || (urlString == nil && !GIFLoader.canLookUp(exerciseId)) {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.largeTitle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.onHighlight.opacity(0.45))
+            } else {
+                ProgressView().tint(Theme.onHighlight)
             }
         }
-        .task(id: urlString) {
-            image = await GIFLoader.shared.image(for: urlString)
+        .task(id: "\(urlString ?? "")|\(exerciseId ?? "")") {
+            failed = false
+            image = await GIFLoader.shared.image(for: urlString, exerciseId: exerciseId)
+            failed = image == nil
         }
     }
 }
@@ -104,32 +111,108 @@ private struct AnimatedImageView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UIImageView, context: Context) {
-        view.image = image
+        if view.image !== image { view.image = image }
         view.startAnimating()
     }
 }
 
+/// Loads exercise GIFs. Fixes the usual reasons a GIF did not show:
+/// http links (blocked by iOS), links with spaces, a dead link stored with an
+/// old session (looked up again by exercise id), large GIFs decoded at full
+/// size, and the same GIF downloaded many times at once.
 actor GIFLoader {
     static let shared = GIFLoader()
-    private var cache: [String: UIImage] = [:]
+    private static let mediaBase = "https://static.exercisedb.dev/media/"
 
-    func image(for urlString: String?) async -> UIImage? {
-        guard let urlString, let url = URL(string: urlString) else { return nil }
-        if let cached = cache[urlString] { return cached }
-        guard let response = try? await URLSession.shared.data(from: url),
-              let image = Self.decode(response.0) else { return nil }
-        cache[urlString] = image
+    private var cache: [String: UIImage] = [:]
+    private var inFlight: [String: Task<UIImage?, Never>] = [:]
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.requestCachePolicy = .returnCacheDataElseLoad
+        config.urlCache = URLCache(memoryCapacity: 20_000_000, diskCapacity: 300_000_000)
+        config.httpMaximumConnectionsPerHost = 4
+        return URLSession(configuration: config)
+    }()
+
+    /// Library exercises can be looked up by id; custom ones have no GIF.
+    nonisolated static func canLookUp(_ exerciseId: String?) -> Bool {
+        guard let exerciseId, !exerciseId.isEmpty else { return false }
+        return !exerciseId.hasPrefix("custom-")
+    }
+
+    func image(for urlString: String?, exerciseId: String? = nil) async -> UIImage? {
+        let key = urlString ?? exerciseId ?? ""
+        guard !key.isEmpty else { return nil }
+        if let cached = cache[key] { return cached }
+        if let running = inFlight[key] { return await running.value }
+        let task = Task { await self.load(urlString: urlString, exerciseId: exerciseId) }
+        inFlight[key] = task
+        let image = await task.value
+        inFlight[key] = nil
+        if let image { cache[key] = image }
         return image
     }
 
+    private func load(urlString: String?, exerciseId: String?) async -> UIImage? {
+        var candidates: [URL] = []
+        if let url = Self.normalized(urlString) { candidates.append(url) }
+        if Self.canLookUp(exerciseId), let exerciseId,
+           let url = URL(string: Self.mediaBase + exerciseId + ".gif"), !candidates.contains(url) {
+            candidates.append(url)
+        }
+        for url in candidates {
+            if let image = await fetch(url) { return image }
+        }
+        // Last try: ask the library for the exercise's current link.
+        if Self.canLookUp(exerciseId), let exerciseId,
+           let fresh = try? await ExerciseDBClient.shared.exercise(id: exerciseId),
+           let url = Self.normalized(fresh.gifUrl), !candidates.contains(url) {
+            return await fetch(url)
+        }
+        return nil
+    }
+
+    private func fetch(_ url: URL) async -> UIImage? {
+        for attempt in 0..<2 {
+            if let result = try? await session.data(from: url) {
+                let (data, response) = result
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+                if (200..<300).contains(status), let image = Self.decode(data) { return image }
+                if status == 404 { return nil }
+            }
+            if attempt == 0 { try? await Task.sleep(nanoseconds: 800_000_000) }
+        }
+        return nil
+    }
+
+    static func normalized(_ raw: String?) -> URL? {
+        guard var text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        if text.hasPrefix("//") { text = "https:" + text }
+        if text.hasPrefix("http://") { text = "https://" + text.dropFirst("http://".count) }
+        if let url = URL(string: text) { return url }
+        return text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
+    }
+
+    /// Decodes every frame, scaled down to at most 400 px, so long lists of
+    /// GIFs don't run out of memory.
     private static func decode(_ data: Data) -> UIImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return UIImage(data: data) }
         let count = CGImageSourceGetCount(source)
-        guard count > 1 else { return UIImage(data: data) }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 400,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard count > 1 else {
+            if let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) { return UIImage(cgImage: cg) }
+            return UIImage(data: data)
+        }
         var frames: [UIImage] = []
         var duration: Double = 0
         for i in 0..<count {
-            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            guard let cg = CGImageSourceCreateThumbnailAtIndex(source, i, options as CFDictionary)
+                    ?? CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
             frames.append(UIImage(cgImage: cg))
             let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any]
             let gif = props?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
@@ -137,6 +220,7 @@ actor GIFLoader {
                 ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double) ?? 0.1
             duration += delay < 0.02 ? 0.1 : delay
         }
+        guard !frames.isEmpty else { return UIImage(data: data) }
         return UIImage.animatedImage(with: frames, duration: duration)
     }
 }
@@ -153,7 +237,7 @@ struct SuggestionCard: View {
             if let lastSummary {
                 Text("Last time: \(lastSummary)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
             HStack(alignment: .top) {
                 Image(systemName: suggestion.action.symbol)
@@ -161,7 +245,7 @@ struct SuggestionCard: View {
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(suggestion.headline).font(.subheadline.bold())
-                    Text(suggestion.reason).font(.caption).foregroundStyle(.secondary)
+                    Text(suggestion.reason).font(.caption).foregroundStyle(Theme.secondaryText)
                 }
                 Spacer(minLength: 0)
                 if let onApply, suggestion.isChange {
@@ -172,7 +256,8 @@ struct SuggestionCard: View {
             }
         }
         .padding(10)
-        .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .background(color.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.5), lineWidth: 1))
     }
 
     private var color: Color {
@@ -194,7 +279,7 @@ struct MuscleOverview: View {
         let maxGroup = groups.map(\.score).max() ?? 1
         VStack(alignment: .leading, spacing: 14) {
             if groups.isEmpty {
-                Text("No muscles yet. Add an exercise.").foregroundStyle(.secondary)
+                Text("No muscles yet. Add an exercise.").foregroundStyle(Theme.secondaryText)
             }
             ForEach(groups) { entry in
                 VStack(alignment: .leading, spacing: 6) {
@@ -205,10 +290,10 @@ struct MuscleOverview: View {
                         Spacer()
                         Text("\(Format.number(entry.score)) sets")
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                     }
                     GeometryReader { geo in
-                        Capsule().fill(entry.group.color.opacity(0.15))
+                        Capsule().fill(entry.group.color.opacity(0.25))
                             .overlay(alignment: .leading) {
                                 Capsule().fill(entry.group.color)
                                     .frame(width: geo.size.width * entry.score / maxGroup)
@@ -218,13 +303,13 @@ struct MuscleOverview: View {
                     let muscles = loads.filter { $0.group == entry.group }
                     Text(muscles.map { "\($0.muscle.capitalized) \(Format.number($0.score))" }.joined(separator: " · "))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
             if !groups.isEmpty {
                 Text("Counts working sets: target muscles count 1, secondary muscles count ½.")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
             }
         }
     }
@@ -247,7 +332,7 @@ struct StatTile: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             if let detail {
-                Text(detail).font(.caption2).foregroundStyle(.secondary)
+                Text(detail).font(.caption2).foregroundStyle(Theme.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

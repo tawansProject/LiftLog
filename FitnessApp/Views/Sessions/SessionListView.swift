@@ -1,13 +1,15 @@
 import SwiftUI
 import SwiftData
 
-/// Saved sessions (unlimited). Start one, edit it, or create a new one.
+/// Workouts tab: start a quick session, or create, edit and start workout
+/// plans (unlimited). Recent sessions from both are listed underneath.
 struct SessionListView: View {
     @Environment(\.modelContext) private var context
     @EnvironmentObject private var engine: WorkoutEngine
     @Query(sort: \SessionTemplate.updatedAt, order: .reverse) private var templates: [SessionTemplate]
-    @Query private var records: [WorkoutRecord]
+    @Query(sort: \WorkoutRecord.startedAt, order: .reverse) private var records: [WorkoutRecord]
     @State private var builder: BuilderTarget?
+    @State private var savedPlanName: String?
 
     var body: some View {
         NavigationStack {
@@ -18,15 +20,22 @@ struct SessionListView: View {
                             StreakHeader(records: records)
                         }
                     }
-                    Section("Saved sessions") {
+                    Section {
+                        StartChoiceCards(disabled: engine.isActive,
+                                         onQuick: { builder = .quick },
+                                         onPlan: { builder = .new })
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } footer: {
+                        if engine.isActive { Text("A workout is in progress. Finish it before starting another.") }
+                    }
+                    Section {
                         if templates.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("No sessions yet").font(.headline)
-                                Text("Create a session like \"Session A: Dumbbell bench press 30 kg, 3 × 12\". It's saved so you can repeat it any time.")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("No workout plans yet").font(.headline)
+                                Text("A plan is a reusable list like \"Plan A: Dumbbell bench press 30 kg, 3 × 12\". Start it any time; each run is saved as a session in History.")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Button("Create session") { builder = .new }
-                                    .buttonStyle(.white)
+                                    .foregroundStyle(Theme.secondaryText)
                             }
                             .padding(.vertical, 6)
                         }
@@ -45,6 +54,31 @@ struct SessionListView: View {
                                     .tint(.indigo)
                             }
                         }
+                    } header: {
+                        Text("Workout plans")
+                    }
+                    if !records.isEmpty {
+                        Section {
+                            ForEach(records.prefix(5)) { record in
+                                NavigationLink {
+                                    WorkoutSummaryView(record: record)
+                                } label: {
+                                    RecentSessionRow(record: record)
+                                }
+                                .swipeActions {
+                                    if record.isQuick && record.templateID == nil {
+                                        Button {
+                                            savedPlanName = PlanSaver.save(record, in: context).name
+                                        } label: { Label("Save as plan", systemImage: "square.and.arrow.down") }
+                                            .tint(.indigo)
+                                    }
+                                }
+                            }
+                        } header: {
+                            Text("Recent sessions")
+                        } footer: {
+                            Text("Quick sessions can be saved as a workout plan: swipe left, or open one and tap Save as plan.")
+                        }
                     }
                 }
                 .listRowBackground(Theme.card)
@@ -58,11 +92,20 @@ struct SessionListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { builder = .new } label: { Label("New session", systemImage: "plus") }
+                    Menu {
+                        Button { builder = .quick } label: { Label("Quick session", systemImage: "bolt.fill") }
+                        Button { builder = .new } label: { Label("New workout plan", systemImage: "list.bullet.clipboard") }
+                    } label: { Label("New", systemImage: "plus") }
                 }
             }
             .fullScreenCover(item: $builder) { target in
-                SessionBuilderView(template: target.template)
+                SessionBuilderView(template: target.template, isQuick: target.isQuick)
+            }
+            .alert("Saved as a workout plan", isPresented: Binding(get: { savedPlanName != nil },
+                                                                   set: { if !$0 { savedPlanName = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\"\(savedPlanName ?? "")\" is now in Workout plans.")
             }
         }
     }
@@ -80,13 +123,20 @@ struct SessionListView: View {
 
 enum BuilderTarget: Identifiable {
     case new
+    case quick
     case edit(SessionTemplate)
 
     var id: String {
         switch self {
         case .new: return "new"
+        case .quick: return "quick"
         case .edit(let template): return template.id.uuidString
         }
+    }
+
+    var isQuick: Bool {
+        if case .quick = self { return true }
+        return false
     }
 
     var template: SessionTemplate? {
@@ -105,7 +155,7 @@ struct SessionRow: View {
             Text(template.name).font(.headline)
             Text("\(items.count) exercises · \(items.reduce(0) { $0 + $1.sets.count }) sets")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             HStack(spacing: 6) {
                 ForEach(Array(groups)) { entry in
                     Text(entry.group.label)
@@ -113,13 +163,13 @@ struct SessionRow: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .foregroundStyle(entry.group.color)
-                        .background(entry.group.color.opacity(0.12), in: Capsule())
+                        .background(entry.group.color.opacity(0.25), in: Capsule())
                 }
                 Spacer()
                 if let last = template.lastPerformedAt {
                     Text(last, format: .relative(presentation: .named))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }
@@ -127,7 +177,7 @@ struct SessionRow: View {
     }
 }
 
-/// Overview of a saved session with its muscle map, and the Start button.
+/// Overview of a workout plan with its muscle map, and the Start button.
 struct SessionDetailView: View {
     @EnvironmentObject private var engine: WorkoutEngine
     @Query private var records: [WorkoutRecord]
@@ -152,7 +202,10 @@ struct SessionDetailView: View {
                     .listRowInsets(EdgeInsets())
                 }
                 Section("Muscles worked") {
-                    MuscleOverview(loads: MuscleAnalysis.loads(planned: items))
+                    let loads = MuscleAnalysis.loads(planned: items)
+                    MuscleMapView(loads: loads)
+                        .padding(.vertical, 8)
+                    MuscleOverview(loads: loads)
                         .padding(.vertical, 6)
                 }
                 Section("Exercises") {
@@ -163,7 +216,7 @@ struct SessionDetailView: View {
                                                   secondaryMuscles: item.secondaryMuscles, exerciseId: item.exerciseId, size: 64)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("\(index + 1). \(item.name)").font(.headline)
-                                    Text(item.setSummary).font(.caption).foregroundStyle(.secondary)
+                                    Text(item.setSummary).font(.caption).foregroundStyle(Theme.secondaryText)
                                     MuscleChips(target: item.targetMuscles, secondary: item.secondaryMuscles, compact: true)
                                 }
                             }
@@ -182,5 +235,89 @@ struct SessionDetailView: View {
         .toolbar {
             Button("Edit", action: onEdit)
         }
+    }
+}
+
+/// The two ways to work out: a quick session that starts right away, or a
+/// reusable workout plan.
+struct StartChoiceCards: View {
+    var disabled: Bool
+    var onQuick: () -> Void
+    var onPlan: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onQuick) {
+                card(title: "Quick session", detail: "Pick exercises and start now", symbol: "bolt.fill",
+                     foreground: Theme.onHighlight, background: Theme.highlight)
+            }
+            Button(action: onPlan) {
+                card(title: "Workout plan", detail: "Build a reusable plan", symbol: "list.bullet.clipboard",
+                     foreground: .white, background: Theme.cardRaised)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+    }
+
+    private func card(title: String, detail: String, symbol: String, foreground: Color, background: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol).font(.title2)
+            Text(title).font(.headline)
+            Text(detail).font(.caption).opacity(0.8)
+        }
+        .foregroundStyle(foreground)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
+        .padding(14)
+        .background(background, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.outline, lineWidth: 1))
+    }
+}
+
+struct RecentSessionRow: View {
+    var record: WorkoutRecord
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(record.name).font(.headline).lineLimit(1)
+                Text(record.isQuick ? "Quick" : "Plan")
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .foregroundStyle(record.isQuick ? Theme.onHighlight : .white)
+                    .background(record.isQuick ? Theme.highlight : Theme.accent.opacity(0.5), in: Capsule())
+                Spacer()
+                Text(record.startedAt, format: .relative(presentation: .named))
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            let exercises = record.exercises.filter(\.hasProgress)
+            Text("\(Format.shortDuration(record.duration)) · \(exercises.count) exercises")
+                .font(.subheadline)
+                .foregroundStyle(Theme.secondaryText)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+/// Turns a recorded quick session into a reusable workout plan, using what
+/// was actually lifted.
+@MainActor
+enum PlanSaver {
+    @discardableResult
+    static func save(_ record: WorkoutRecord, in context: ModelContext) -> SessionTemplate {
+        let items = record.exercises.filter { $0.hasProgress || $0.status != .skipped }.map { log -> PlannedExercise in
+            var plan = log.asPlanned()
+            plan.id = UUID()
+            return plan
+        }
+        let plan = SessionTemplate(name: record.name, items: items)
+        plan.lastPerformedAt = record.startedAt
+        context.insert(plan)
+        if record.templateID == nil { record.templateID = plan.id }
+        try? context.save()
+        return plan
     }
 }

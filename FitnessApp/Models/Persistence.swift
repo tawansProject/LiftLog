@@ -1,7 +1,8 @@
 import Foundation
 import SwiftData
 
-/// A saved, reusable session ("Session A: Bench, Rows, ...").
+/// A workout plan: a saved, reusable list of exercises ("Plan A: Bench, Rows, ...").
+/// Each time it is started it becomes a recorded session (`WorkoutRecord`).
 /// The exercise list is stored as JSON so the nested sets stay simple and stable.
 @Model
 final class SessionTemplate {
@@ -29,7 +30,8 @@ final class SessionTemplate {
     }
 }
 
-/// A finished (or finished-early) workout.
+/// A recorded session: a finished (or finished-early) workout, started from a
+/// workout plan or as a quick session.
 @Model
 final class WorkoutRecord {
     @Attribute(.unique) var id: UUID
@@ -38,6 +40,8 @@ final class WorkoutRecord {
     var startedAt: Date
     var endedAt: Date
     var finishedEarly: Bool
+    /// Done as a quick session rather than from a workout plan.
+    var isQuick: Bool = false
     var activeCalories: Double?
     var averageHeartRate: Double?
     var maxHeartRate: Double?

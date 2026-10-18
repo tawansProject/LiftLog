@@ -53,7 +53,7 @@ struct SettingsView: View {
                             }
                         }
                         if let healthMessage {
-                            Text(healthMessage).font(.caption).foregroundStyle(.secondary)
+                            Text(healthMessage).font(.caption).foregroundStyle(Theme.secondaryText)
                         }
                     } header: {
                         Text("Apple Watch & Health")
@@ -69,7 +69,7 @@ struct SettingsView: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 80)
-                            Text("kg").foregroundStyle(.secondary)
+                            Text("kg").foregroundStyle(Theme.secondaryText)
                         }
                         Stepper(value: $age, in: 12...100) { LabeledContent("Age", value: "\(age)") }
                         Picker("Sex", selection: $sex) {

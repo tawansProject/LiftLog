@@ -1,14 +1,17 @@
 import SwiftUI
 import SwiftData
 
-/// Create or edit a session: name it, search and add exercises, adjust sets,
-/// reps, weight and rest, then review the muscle overview and confirm.
+/// Create or edit a workout plan, or put together a quick session: search and
+/// add exercises, adjust sets, reps, weight and rest, then review the muscle
+/// map and confirm. A quick session isn't saved as a plan; it starts right
+/// away and is recorded when it's done.
 struct SessionBuilderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @EnvironmentObject private var engine: WorkoutEngine
 
     var template: SessionTemplate?
+    var isQuick = false
 
     @State private var name: String
     @State private var items: [PlannedExercise]
@@ -16,8 +19,9 @@ struct SessionBuilderView: View {
     @State private var editing: PlannedExercise?
     @State private var showReview = false
 
-    init(template: SessionTemplate?) {
+    init(template: SessionTemplate?, isQuick: Bool = false) {
         self.template = template
+        self.isQuick = isQuick
         _name = State(initialValue: template?.name ?? "")
         _items = State(initialValue: template?.items ?? [])
     }
@@ -26,8 +30,14 @@ struct SessionBuilderView: View {
         NavigationStack {
             List {
                 Group {
-                    Section("Name") {
-                        TextField("e.g. Session A: Push", text: $name)
+                    Section {
+                        TextField(isQuick ? "Quick session" : "e.g. Plan A: Push", text: $name)
+                    } header: {
+                        Text("Name")
+                    } footer: {
+                        if isQuick {
+                            Text("Optional. Add exercises and start. The session is saved to History when you finish.")
+                        }
                     }
                     Section {
                         ForEach(items) { item in
@@ -54,21 +64,25 @@ struct SessionBuilderView: View {
                 .listRowBackground(Theme.card)
             }
             .themedList()
-            .navigationTitle(template == nil ? "New session" : "Edit session")
+            .navigationTitle(isQuick ? "Quick session" : (template == nil ? "New workout plan" : "Edit workout plan"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Review") { showReview = true }
+                    Button(isQuick ? "Start" : "Review") { showReview = true }
+                        .bold()
                         .disabled(items.isEmpty)
                 }
             }
             .navigationDestination(isPresented: $showReview) {
-                ReviewSessionView(name: displayName, items: items,
-                                  onSave: { save(start: false) },
-                                  onStart: { save(start: true) })
+                ReviewSessionView(name: displayName, items: items, isQuick: isQuick,
+                                  onSave: isQuick ? nil : { save(start: false) },
+                                  onStart: { isQuick ? startQuick() : save(start: true) })
+            }
+            .onAppear {
+                if isQuick && items.isEmpty { showSearch = true }
             }
             .sheet(isPresented: $showSearch) {
                 ExercisePickerFlow { plan in
@@ -89,7 +103,22 @@ struct SessionBuilderView: View {
 
     private var displayName: String {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? "Session \(Date().formatted(date: .abbreviated, time: .omitted))" : trimmed
+        guard trimmed.isEmpty else { return trimmed }
+        return isQuick ? "Quick session" : "Plan \(Date().formatted(date: .abbreviated, time: .omitted))"
+    }
+
+    /// Quick session: nothing is saved as a plan, the workout just starts.
+    private func startQuick() {
+        for item in items { markUsed(item) }
+        try? context.save()
+        dismiss()
+        guard !engine.isActive else { return }
+        let workoutEngine = engine
+        let name = displayName, plans = items
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            workoutEngine.start(name: name, templateID: nil, items: plans, isQuick: true)
+        }
     }
 
     private func save(start: Bool) {
@@ -139,12 +168,12 @@ struct BuilderRow: View {
                 HStack {
                     Text(item.name).font(.headline)
                     Spacer()
-                    Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
+                    Image(systemName: "slider.horizontal.3").foregroundStyle(Theme.secondaryText)
                 }
                 Text(item.setSummary).font(.subheadline)
                 Text("Rest \(Format.rest(item.restBetweenSets)) between sets · \(Format.rest(item.restAfterExercise)) after")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                 MuscleChips(target: item.targetMuscles, compact: true)
             }
             .contentShape(Rectangle())
@@ -159,7 +188,9 @@ struct ReviewSessionView: View {
     @EnvironmentObject private var engine: WorkoutEngine
     var name: String
     var items: [PlannedExercise]
-    var onSave: () -> Void
+    var isQuick = false
+    /// Nil for a quick session, which isn't saved as a plan.
+    var onSave: (() -> Void)?
     var onStart: () -> Void
 
     var body: some View {
@@ -169,11 +200,14 @@ struct ReviewSessionView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(name).font(.title2.bold())
                         Text("\(items.count) exercises · \(totalSets) sets · about \(restMinutes) min of rest")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                     }
                 }
                 Section("Muscles you'll hit") {
-                    MuscleOverview(loads: MuscleAnalysis.loads(planned: items))
+                    let loads = MuscleAnalysis.loads(planned: items)
+                    MuscleMapView(loads: loads)
+                        .padding(.vertical, 8)
+                    MuscleOverview(loads: loads)
                         .padding(.vertical, 6)
                 }
                 Section("Order") {
@@ -184,7 +218,7 @@ struct ReviewSessionView: View {
                                               secondaryMuscles: item.secondaryMuscles, exerciseId: item.exerciseId, size: 64)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.name)
-                                Text(item.setSummary).font(.caption).foregroundStyle(.secondary)
+                                Text(item.setSummary).font(.caption).foregroundStyle(Theme.secondaryText)
                                 MuscleChips(target: item.targetMuscles, compact: true)
                             }
                         }
@@ -192,7 +226,7 @@ struct ReviewSessionView: View {
                 }
                 Section {
                     Button(action: onStart) {
-                        Label("Confirm & start", systemImage: "play.fill")
+                        Label(isQuick ? "Start now" : "Confirm & start", systemImage: "play.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
@@ -201,12 +235,14 @@ struct ReviewSessionView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
     
-                    Button(action: onSave) {
-                        Text("Save for later").frame(maxWidth: .infinity)
+                    if let onSave {
+                        Button(action: onSave) {
+                            Text("Save plan for later").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                     }
-                    .buttonStyle(.bordered)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                 } footer: {
                     if engine.isActive { Text("Finish your current workout before starting another.") }
                 }
@@ -214,7 +250,7 @@ struct ReviewSessionView: View {
             .listRowBackground(Theme.card)
         }
         .themedList()
-        .navigationTitle("Confirm session")
+        .navigationTitle(isQuick ? "Ready to start" : "Confirm plan")
         .navigationBarTitleDisplayMode(.inline)
     }
 

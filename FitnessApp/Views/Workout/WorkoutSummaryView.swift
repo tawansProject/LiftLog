@@ -12,6 +12,7 @@ struct WorkoutSummaryView: View {
     var isFreshlyFinished = false
     @State private var refreshing = false
     @State private var editingIndex: Int?
+    @State private var savedAsPlan = false
 
     var body: some View {
         let exercises = record.exercises
@@ -30,7 +31,7 @@ struct WorkoutSummaryView: View {
                         }
                         Text(record.startedAt.formatted(date: .complete, time: .shortened))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                     }
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         StatTile(title: "Total time", value: Format.duration(record.duration), symbol: "timer")
@@ -50,14 +51,39 @@ struct WorkoutSummaryView: View {
                                 Text(pr.exerciseName)
                                 Spacer()
                                 Text("\(Format.weight(pr.weight)) × \(pr.reps)").bold()
-                                Text("was \(Format.weight(pr.previousBest))").font(.caption).foregroundStyle(.secondary)
+                                Text("was \(Format.weight(pr.previousBest))").font(.caption).foregroundStyle(Theme.secondaryText)
                             }
                         }
                     }
                 }
     
+                if record.isQuick && record.templateID == nil {
+                    Section {
+                        Button {
+                            PlanSaver.save(record, in: context)
+                            savedAsPlan = true
+                        } label: {
+                            Label("Save as workout plan", systemImage: "square.and.arrow.down")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.white)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                    } footer: {
+                        Text("This quick session is saved in History. Save it as a plan to repeat it later.")
+                    }
+                } else if savedAsPlan {
+                    Section {
+                        Label("Saved to Workout plans", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
+
                 Section("Muscles worked") {
-                    MuscleOverview(loads: MuscleAnalysis.loads(logged: exercises))
+                    let loads = MuscleAnalysis.loads(logged: exercises)
+                    MuscleMapView(loads: loads)
+                        .padding(.vertical, 8)
+                    MuscleOverview(loads: loads)
                         .padding(.vertical, 6)
                 }
     
@@ -70,7 +96,7 @@ struct WorkoutSummaryView: View {
                                 Text(exercise.name).font(.headline)
                                 Spacer()
                                 if exercise.status == .skipped || !exercise.hasProgress {
-                                    Text("Skipped").font(.caption).foregroundStyle(.secondary)
+                                    Text("Skipped").font(.caption).foregroundStyle(Theme.secondaryText)
                                 }
                                 Button { editingIndex = index } label: {
                                     Image(systemName: "pencil.circle")
@@ -85,7 +111,7 @@ struct WorkoutSummaryView: View {
                                     Text("Effort \(effort) · \(EffortScale.label(effort))")
                                         .foregroundStyle(EffortScale.color(effort))
                                 } else if exercise.hasProgress {
-                                    Text("No effort rating").foregroundStyle(.secondary)
+                                    Text("No effort rating").foregroundStyle(Theme.secondaryText)
                                 }
                                 if exercise.injured {
                                     Label(exercise.injuryNote.isEmpty ? "Injured" : exercise.injuryNote, systemImage: "bandage.fill")
@@ -145,15 +171,15 @@ struct WorkoutSummaryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let kcal = record.activeCalories {
                     Text("\(Int(kcal.rounded())) kcal").font(.headline)
-                    Text(record.calorieSource?.label ?? "").font(.caption).foregroundStyle(.secondary)
+                    Text(record.calorieSource?.label ?? "").font(.caption).foregroundStyle(Theme.secondaryText)
                 } else {
                     Text("Calculating calories…").font(.subheadline)
-                    Text("Reading heart rate from Apple Health").font(.caption).foregroundStyle(.secondary)
+                    Text("Reading heart rate from Apple Health").font(.caption).foregroundStyle(Theme.secondaryText)
                 }
                 if let hr = record.averageHeartRate {
                     Text("Avg heart rate \(Int(hr)) bpm" + (record.maxHeartRate.map { " · max \(Int($0))" } ?? ""))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
             Spacer()

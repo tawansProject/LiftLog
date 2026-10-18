@@ -76,7 +76,7 @@ struct LiveWorkoutView: View {
                 Text(workout.name).font(.subheadline.bold()).lineLimit(1)
                 Text(workout.startedAt, style: .timer)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -161,14 +161,20 @@ struct CurrentExerciseCard: View {
                     MuscleChips(target: exercise.targetMuscles, secondary: exercise.secondaryMuscles, compact: true)
                 }
                 Spacer()
-                if exercise.gifUrl != nil {
+                if hasGIF {
                     Button { showGIF.toggle() } label: {
-                        Image(systemName: showGIF ? "photo.fill" : "photo")
+                        Image(systemName: showGIF ? "chevron.up.circle.fill" : "play.rectangle.fill")
+                            .font(.title3)
                     }
+                    .accessibilityLabel(showGIF ? "Hide animation" : "Show animation")
                 }
             }
-            if showGIF {
-                ExerciseGIFView(urlString: exercise.gifUrl).frame(height: 180)
+            // The exercise animation stays on screen while you train.
+            if hasGIF && showGIF {
+                ExerciseGIFView(urlString: exercise.gifUrl, exerciseId: exercise.exerciseId)
+                    .frame(height: 240)
+                    .frame(maxWidth: .infinity)
+                    .id(exercise.exerciseId)
             }
 
             if let suggestion = ProgressionEngine.suggest(history: Array(history.prefix(5))),
@@ -206,11 +212,14 @@ struct CurrentExerciseCard: View {
             }
             Text("Rest \(Format.rest(exercise.restBetweenSets)) between sets, \(Format.rest(exercise.restAfterExercise)) before the next exercise")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
         .padding()
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.outline, lineWidth: 1))
     }
+
+    private var hasGIF: Bool { exercise.gifUrl != nil || GIFLoader.canLookUp(exercise.exerciseId) }
 
     private func label(for setIndex: Int) -> String {
         let set = exercise.sets[setIndex]
@@ -243,7 +252,7 @@ struct LiveSetRow: View {
                 }
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("Reps").font(.caption2).foregroundStyle(.secondary)
+                Text("Reps").font(.caption2).foregroundStyle(Theme.secondaryText)
                 TextField("Reps", value: Binding(get: { set.reps },
                                                  set: { engine.updateSet(exercise: exerciseIndex, set: setIndex, reps: $0) }),
                           format: .number)
@@ -251,7 +260,7 @@ struct LiveSetRow: View {
                     .font(.title3.monospacedDigit())
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text("kg").font(.caption2).foregroundStyle(.secondary)
+                Text("kg").font(.caption2).foregroundStyle(Theme.secondaryText)
                 TextField("kg", value: Binding(get: { set.weight },
                                                set: { engine.updateSet(exercise: exerciseIndex, set: setIndex, weight: $0) }),
                           format: .number.precision(.fractionLength(0...2)))
@@ -262,19 +271,19 @@ struct LiveSetRow: View {
             if set.reps != set.targetReps || set.weight != set.targetWeight {
                 Text("plan \(set.targetReps)×\(Format.number(set.targetWeight))")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
             Button {
                 engine.toggleSet(exercise: exerciseIndex, set: setIndex)
             } label: {
                 Image(systemName: set.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 34))
-                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Theme.highlight : Color.secondary))
+                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Theme.highlight : Theme.secondaryText))
             }
             .buttonStyle(.plain)
         }
         .padding(8)
-        .background(isNext ? Color.accentColor.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(isNext ? Theme.accent.opacity(0.22) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
         .opacity(set.isDone ? 0.7 : 1)
     }
 
@@ -304,7 +313,7 @@ struct ExerciseQueue: View {
                             Text(exercise.name).font(.subheadline)
                             Text(detail(exercise))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.secondaryText)
                         }
                         Spacer()
                         if exercise.status == .pending && index != workout.currentIndex {
@@ -314,7 +323,7 @@ struct ExerciseQueue: View {
                         }
                     }
                     .padding(10)
-                    .background(index == workout.currentIndex ? Color.accentColor.opacity(0.1) : Theme.card,
+                    .background(index == workout.currentIndex ? Theme.cardRaised : Theme.card,
                                 in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
@@ -342,7 +351,7 @@ struct ExerciseQueue: View {
         switch exercise.status {
         case .completed: return .green
         case .skipped: return .gray
-        case .pending: return index == workout.currentIndex ? .accentColor : .secondary
+        case .pending: return index == workout.currentIndex ? .accentColor : Theme.secondaryText
         }
     }
 }
@@ -368,8 +377,16 @@ struct RestBanner: View {
                     EmptyView()
                 }
                 .tint(.orange)
-                if let next = engine.nextUpDescription() {
-                    Text(next).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 10) {
+                    if let upcoming = upcomingExercise {
+                        // Keep the animation in view during rest so you can see what's next.
+                        ExerciseGIFView(urlString: upcoming.gifUrl, exerciseId: upcoming.exerciseId)
+                            .frame(width: 64, height: 64)
+                    }
+                    if let next = engine.nextUpDescription() {
+                        Text(next).font(.caption).foregroundStyle(Theme.secondaryText)
+                    }
+                    Spacer(minLength: 0)
                 }
                 HStack {
                     Button("+30 s") { engine.addRest(seconds: 30) }
@@ -381,9 +398,20 @@ struct RestBanner: View {
                 }
             }
             .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .background(Theme.cardRaised, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.outline, lineWidth: 1))
             .padding(.horizontal)
             .padding(.bottom, 4)
         }
+    }
+
+    /// The exercise you'll do after this rest (same rule as the "next up" line).
+    private var upcomingExercise: LoggedExercise? {
+        let exercises = workout.exercises
+        guard exercises.indices.contains(workout.currentIndex) else { return nil }
+        let current = exercises[workout.currentIndex]
+        if engine.nextSetIndex(in: current) != nil { return current }
+        if let next = WorkoutEngine.nextPendingIndex(in: workout, after: workout.currentIndex) { return exercises[next] }
+        return current
     }
 }

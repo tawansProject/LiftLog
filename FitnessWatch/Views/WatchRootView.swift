@@ -2,11 +2,13 @@ import SwiftUI
 
 /// Dark blue theme matching the iPhone app.
 enum WatchTheme {
-    static let accent = Color(red: 0.302, green: 0.553, blue: 1.0)
+    static let accent = Color(red: 0.400, green: 0.640, blue: 1.0)
+    /// Brighter than the system gray for labels on navy.
+    static let secondaryText = Color.white.opacity(0.78)
     /// Navy text on white buttons.
     static let ink = Color(red: 0.039, green: 0.090, blue: 0.180)
-    static let background = LinearGradient(colors: [Color(red: 0.075, green: 0.157, blue: 0.290),
-                                                     Color(red: 0.020, green: 0.050, blue: 0.110)],
+    static let background = LinearGradient(colors: [Color(red: 0.090, green: 0.188, blue: 0.353),
+                                                     Color(red: 0.012, green: 0.031, blue: 0.075)],
                                            startPoint: .top, endPoint: .bottom)
 }
 
@@ -50,10 +52,10 @@ struct IdleView: View {
                 .foregroundStyle(.tint)
             Text("No workout")
                 .font(.headline)
-            Text("Start a session on your iPhone. It will show up here.")
+            Text("Start a quick session or a workout plan on your iPhone. It will show up here.")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(WatchTheme.secondaryText)
             if !store.isReachable {
                 Label("iPhone not reachable", systemImage: "iphone.slash")
                     .font(.caption2)
@@ -105,7 +107,7 @@ struct CurrentSetView: View {
                     .lineLimit(2)
                 Text("Exercise \(snapshot.exerciseIndex + 1)/\(snapshot.exerciseCount)")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(WatchTheme.secondaryText)
 
                 if snapshot.exerciseFinished {
                     Label(snapshot.allExercisesDone ? "Workout complete" : "Exercise done", systemImage: "checkmark.seal.fill")
@@ -113,7 +115,7 @@ struct CurrentSetView: View {
                         .font(.subheadline)
                     Text(snapshot.allExercisesDone ? "Tap Finish on your iPhone to see the summary." : "Pick the next exercise on your iPhone.")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(WatchTheme.secondaryText)
                 } else {
                     HStack(alignment: .firstTextBaseline) {
                         Text(setTitle).font(.subheadline.bold()).foregroundStyle(kindColor)
@@ -122,12 +124,12 @@ struct CurrentSetView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("\(snapshot.targetReps)")
                             .font(.system(size: 40, weight: .bold, design: .rounded))
-                        Text("reps").font(.caption).foregroundStyle(.secondary)
+                        Text("reps").font(.caption).foregroundStyle(WatchTheme.secondaryText)
                         Spacer()
                         Text(snapshot.targetWeight > 0 ? Format.number(snapshot.targetWeight) : "BW")
                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                         if snapshot.targetWeight > 0 {
-                            Text("kg").font(.caption).foregroundStyle(.secondary)
+                            Text("kg").font(.caption).foregroundStyle(WatchTheme.secondaryText)
                         }
                     }
                     Button {
@@ -146,7 +148,7 @@ struct CurrentSetView: View {
                 if let next = snapshot.nextUp {
                     Text(next)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(WatchTheme.secondaryText)
                         .padding(.top, 2)
                 }
             }
@@ -193,7 +195,7 @@ struct EffortRatingView: View {
                         .frame(maxWidth: 44)
                 }
             }
-            Text("Effort").font(.caption2).foregroundStyle(.secondary)
+            Text("Effort").font(.caption2).foregroundStyle(WatchTheme.secondaryText)
             HStack {
                 Button { crown = max(1, crown.rounded() - 1) } label: { Image(systemName: "minus") }
                     .frame(width: 40)
@@ -260,9 +262,9 @@ struct RestView: View {
                 WorkoutMetricsLine(startedAt: snapshot.startedAt)
                 Text(snapshot.restIsBetweenExercises ? "Rest · next exercise" : "Rest")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(WatchTheme.secondaryText)
                 ZStack {
-                    Circle().stroke(Color.white.opacity(0.2), lineWidth: 8)
+                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: remaining / total)
                         .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
@@ -273,7 +275,7 @@ struct RestView: View {
                 }
                 .frame(width: 110, height: 110)
                 if let next = snapshot.nextUp {
-                    Text(next).font(.caption2).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                    Text(next).font(.caption2).multilineTextAlignment(.center).foregroundStyle(WatchTheme.secondaryText)
                 }
                 HStack {
                     Button("+30s") { store.send(.addRest30) }

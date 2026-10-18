@@ -28,17 +28,17 @@ struct ExerciseConfigView: View {
             Group {
                 Section {
                     if plan.gifUrl != nil {
-                        ExerciseGIFView(urlString: plan.gifUrl)
+                        ExerciseGIFView(urlString: plan.gifUrl, exerciseId: plan.exerciseId)
                             .frame(height: 200)
                             .listRowInsets(EdgeInsets())
                     }
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Target muscles").font(.caption).foregroundStyle(.secondary)
+                        Text("Target muscles").font(.caption).foregroundStyle(Theme.secondaryText)
                         MuscleChips(target: plan.targetMuscles, secondary: plan.secondaryMuscles)
                         if !plan.equipments.isEmpty {
                             Text("Equipment: \(plan.equipments.joined(separator: ", ").capitalized)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.secondaryText)
                         }
                     }
                     .padding(.vertical, 4)
@@ -174,19 +174,19 @@ struct SetEditorRow: View {
                     .background(color, in: Circle())
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text("Reps").font(.caption2).foregroundStyle(.secondary)
+                Text("Reps").font(.caption2).foregroundStyle(Theme.secondaryText)
                 TextField("Reps", value: $set.reps, format: .number)
                     .keyboardType(.numberPad)
                     .font(.body.monospacedDigit())
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text("Weight (kg)").font(.caption2).foregroundStyle(.secondary)
+                Text("Weight (kg)").font(.caption2).foregroundStyle(Theme.secondaryText)
                 TextField("kg", value: $set.weight, format: .number.precision(.fractionLength(0...2)))
                     .keyboardType(.decimalPad)
                     .font(.body.monospacedDigit())
             }
             Spacer(minLength: 0)
-            Text(set.kind.label).font(.caption2).foregroundStyle(.secondary)
+            Text(set.kind.label).font(.caption2).foregroundStyle(Theme.secondaryText)
         }
     }
 

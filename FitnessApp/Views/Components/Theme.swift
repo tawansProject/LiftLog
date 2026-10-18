@@ -4,15 +4,20 @@ import SwiftData
 
 /// Dark blue theme used across the iPhone app.
 enum Theme {
-    static let background = Color(red: 0.039, green: 0.090, blue: 0.180)   // #0A1730 deep navy
-    static let card = Color(red: 0.075, green: 0.157, blue: 0.290)         // #13284A
-    static let cardRaised = Color(red: 0.110, green: 0.216, blue: 0.392)   // #1C3764
-    static let accent = Color(red: 0.302, green: 0.553, blue: 1.0)         // #4D8DFF
+    // Higher-contrast dark blue: a deeper base, lighter cards, a brighter accent
+    // and brighter secondary text, so cards and labels stand out clearly.
+    static let background = Color(red: 0.020, green: 0.051, blue: 0.118)   // #050D1E deepest navy
+    static let card = Color(red: 0.090, green: 0.188, blue: 0.353)         // #17305A
+    static let cardRaised = Color(red: 0.141, green: 0.271, blue: 0.494)   // #24457E
+    static let accent = Color(red: 0.400, green: 0.640, blue: 1.0)         // #66A3FF
     /// White highlight surfaces and buttons, with navy text on them.
     static let highlight = Color.white
-    static let onHighlight = Color(red: 0.039, green: 0.090, blue: 0.180)  // navy text on white
-    /// Hairline outline that lifts cards off the navy background.
-    static let outline = Color.white.opacity(0.12)
+    static let onHighlight = Color(red: 0.020, green: 0.051, blue: 0.118)  // navy text on white
+    /// Outline that lifts cards off the navy background.
+    static let outline = Color.white.opacity(0.22)
+    /// Secondary and tertiary text, brighter than the system grays on navy.
+    static let secondaryText = Color.white.opacity(0.78)
+    static let tertiaryText = Color.white.opacity(0.6)
 
     /// Navigation and tab bars in the same navy.
     static func applyAppearance() {
@@ -29,6 +34,12 @@ enum Theme {
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()
         tab.backgroundColor = UIColor(card)
+        for item in [tab.stackedLayoutAppearance, tab.inlineLayoutAppearance, tab.compactInlineLayoutAppearance] {
+            item.normal.iconColor = UIColor.white.withAlphaComponent(0.6)
+            item.normal.titleTextAttributes = [.foregroundColor: UIColor.white.withAlphaComponent(0.6)]
+            item.selected.iconColor = .white
+            item.selected.titleTextAttributes = [.foregroundColor: UIColor.white]
+        }
         UITabBar.appearance().standardAppearance = tab
         UITabBar.appearance().scrollEdgeAppearance = tab
     }
@@ -65,6 +76,7 @@ extension View {
     func themedList() -> some View {
         scrollContentBackground(.hidden)
             .background(Theme.background.ignoresSafeArea())
+            .listRowSeparatorTint(Theme.outline)
     }
 }
 
@@ -80,11 +92,11 @@ struct ExerciseThumbnail: View {
 
     var body: some View {
         Button { showPreview = true } label: {
-            ExerciseGIFView(urlString: gifUrl)
+            ExerciseGIFView(urlString: gifUrl, exerciseId: exerciseId)
                 .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .disabled(gifUrl == nil)
+        .disabled(gifUrl == nil && !GIFLoader.canLookUp(exerciseId))
         .sheet(isPresented: $showPreview) {
             ExercisePreviewSheet(name: name, gifUrl: gifUrl, targetMuscles: targetMuscles,
                                  secondaryMuscles: secondaryMuscles, exerciseId: exerciseId)
@@ -106,14 +118,14 @@ struct ExercisePreviewSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(name).font(.title3.bold())
-                ExerciseGIFView(urlString: gifUrl)
+                ExerciseGIFView(urlString: gifUrl, exerciseId: exerciseId)
                     .frame(height: 280)
                 MuscleChips(target: targetMuscles, secondary: secondaryMuscles)
                 let steps = instructions
                 if !steps.isEmpty {
                     Text("How to do it").font(.headline)
                     ForEach(Array(steps.enumerated()), id: \.offset) { _, step in
-                        Text(step).font(.subheadline).foregroundStyle(.secondary)
+                        Text(step).font(.subheadline).foregroundStyle(Theme.secondaryText)
                     }
                 }
             }

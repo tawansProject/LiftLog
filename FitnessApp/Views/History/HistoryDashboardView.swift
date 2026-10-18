@@ -33,7 +33,7 @@ struct HistoryDashboardView: View {
             if inRange.isEmpty {
                 Text("No workouts in this range yet. Finish a workout to start your graphs.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
@@ -61,7 +61,7 @@ struct HistoryDashboardView: View {
                     }
                     let progress = DashboardData.strength(for: selected, in: records, since: range.startDate)
                     if progress.isEmpty {
-                        Text("Not done in this range.").font(.caption).foregroundStyle(.secondary)
+                        Text("Not done in this range.").font(.caption).foregroundStyle(Theme.secondaryText)
                     } else {
                         Chart {
                             ForEach(progress) { point in
@@ -88,7 +88,7 @@ struct HistoryDashboardView: View {
                             let change = last.topWeight - first.topWeight
                             Text("\(change >= 0 ? "▲" : "▼") \(Format.weight(abs(change))) since \(first.date.formatted(.dateTime.day().month(.abbreviated))) · red ✕ = injured")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.secondaryText)
                         }
                     }
                 }
@@ -158,7 +158,7 @@ struct LineCard: View {
             }
             Text("\(unitLabel) · avg \(Format.number((average * 10).rounded() / 10)) \(unit)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             chart
                 .frame(height: 150)
         }

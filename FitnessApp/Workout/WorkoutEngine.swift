@@ -8,6 +8,8 @@ struct ActiveWorkout: Codable {
     var id: UUID = UUID()
     var name: String
     var templateID: UUID?
+    /// Started as a quick session (no workout plan behind it).
+    var isQuick: Bool?
     var startedAt: Date
     var exercises: [LoggedExercise]
     var currentIndex: Int = 0
@@ -71,14 +73,15 @@ final class WorkoutEngine: ObservableObject {
 
     // MARK: Start / finish
 
-    func start(name: String, templateID: UUID?, items: [PlannedExercise]) {
+    /// Starts a workout from a workout plan (`templateID`) or as a quick session.
+    func start(name: String, templateID: UUID?, items: [PlannedExercise], isQuick: Bool = false) {
         guard !items.isEmpty else { return }
         restTimer?.invalidate()
         NotificationManager.shared.cancelRest()
         finishAfterRating = false
         lastEndWasDiscard = false
         let plans = withNewerRecords(items, templateID: templateID)
-        workout = ActiveWorkout(name: name, templateID: templateID, startedAt: Date(),
+        workout = ActiveWorkout(name: name, templateID: templateID, isQuick: isQuick, startedAt: Date(),
                                 exercises: plans.map(LoggedExercise.init(planned:)))
         isMinimized = false
         if AppSettings.launchWatchWorkout { HealthKitManager.shared.startWatchWorkout() }
@@ -135,6 +138,7 @@ final class WorkoutEngine: ObservableObject {
         let context = AppModel.container.mainContext
         let record = WorkoutRecord(name: w.name, templateID: w.templateID, startedAt: w.startedAt,
                                    endedAt: end, finishedEarly: !w.allDone, exercises: w.exercises)
+        record.isQuick = w.isQuick ?? false
         context.insert(record)
         if AppSettings.updateTemplateAfterWorkout, let templateID = w.templateID {
             updateTemplate(id: templateID, with: w.exercises, context: context)
@@ -364,7 +368,7 @@ final class WorkoutEngine: ObservableObject {
         return Self.nextPendingIndex(in: w, after: ex) != nil
     }
 
-    private static func nextPendingIndex(in w: ActiveWorkout, after ex: Int) -> Int? {
+    static func nextPendingIndex(in w: ActiveWorkout, after ex: Int) -> Int? {
         let order = Array(w.exercises.indices.dropFirst(ex + 1)) + Array(w.exercises.indices.prefix(ex))
         return order.first { w.exercises[$0].status == .pending }
     }

@@ -70,7 +70,7 @@ struct StreakCalendarView: View {
             let symbols = weekdaySymbols
             HStack {
                 ForEach(symbols.indices, id: \.self) { i in
-                    Text(symbols[i]).font(.caption2.bold()).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text(symbols[i]).font(.caption2.bold()).foregroundStyle(Theme.secondaryText).frame(maxWidth: .infinity)
                 }
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
@@ -87,7 +87,7 @@ struct StreakCalendarView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(selectedDay.formatted(date: .complete, time: .omitted)).font(.subheadline.bold())
                     if dayRecords.isEmpty {
-                        Text("Rest day").font(.caption).foregroundStyle(.secondary)
+                        Text("Rest day").font(.caption).foregroundStyle(Theme.secondaryText)
                     }
                     ForEach(dayRecords) { record in
                         NavigationLink {
@@ -225,7 +225,7 @@ struct PeriodSummaryView: View {
                         HStack {
                             Text(item.name)
                             Spacer()
-                            Text("\(item.sets) sets").foregroundStyle(.secondary)
+                            Text("\(item.sets) sets").foregroundStyle(Theme.secondaryText)
                         }
                         .font(.subheadline)
                     }
@@ -248,7 +248,7 @@ struct PeriodSummaryView: View {
             }
 
             if stats.workouts == 0 {
-                Text("No workouts in this \(period.rawValue).").foregroundStyle(.secondary)
+                Text("No workouts in this \(period.rawValue).").foregroundStyle(Theme.secondaryText)
             }
         }
         .padding()

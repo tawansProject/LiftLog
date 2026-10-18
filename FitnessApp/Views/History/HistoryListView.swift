@@ -88,11 +88,11 @@ struct HistoryRow: View {
                 Spacer()
                 Text(record.startedAt.formatted(.dateTime.weekday(.abbreviated).day()))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
             Text(summary(exercises))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
     }
 
