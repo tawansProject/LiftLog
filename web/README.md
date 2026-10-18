@@ -3,8 +3,9 @@
 The LiftLog strength-training app as an installable web app (PWA) for iPhone, with rest alerts that
 reach Apple Watch. It replaces the native SwiftUI app in the repo root, which is kept for reference.
 
-- **Stack:** Vite + Preact, no backend database. Sessions, history and settings live on the phone
-  (localStorage; the downloaded Exercise Library in IndexedDB). Settings has backup export/import.
+- **Stack:** Vite + Preact. Local-first: sessions, history and settings live on the phone (localStorage;
+  the downloaded Exercise Library in IndexedDB), with backup export/import. Signed-in users also sync to
+  Supabase (email + password); see [`docs/ACCOUNTS.md`](../docs/ACCOUNTS.md).
 - **Hosting:** Vercel (project root directory `web`). Functions in `api/`:
   - `api/exercises.js` proxies the free hosted exercise API (`oss.exercisedb.dev/api/v1`, no key) and caches it.
   - `api/push/schedule.js` waits until a rest ends and sends a Web Push; `api/push/key.js` serves the public key.

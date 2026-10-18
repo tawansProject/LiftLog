@@ -271,3 +271,10 @@ ol.instructions li { margin-bottom: 6px; }
 .swipe-actions svg { width: 22px; height: 22px; }
 .swipe-actions .edit { background: var(--accent); }
 .swipe-actions .delete { background: var(--red); }
+
+/* Account sync status */
+.sync-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.sync-dot[data-state="syncing"] { background: var(--accent); animation: pulse 1s infinite alternate; }
+.sync-dot[data-state="offline"] { background: var(--faint); }
+.sync-dot[data-state="error"] { background: var(--red); }
+@keyframes pulse { to { opacity: 0.3; } }
