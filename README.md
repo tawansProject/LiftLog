@@ -1,5 +1,8 @@
 # LiftLog: personal strength-training app for iPhone + Apple Watch
 
+> **The current app is the web app in [`web/`](web/README.md)** (installable on iPhone, rest alerts on Apple Watch).
+> The native SwiftUI code below is paused and kept for reference.
+
 Native SwiftUI app (iOS 17+, watchOS 10+) with a dark blue theme (`Views/Components/Theme.swift`; exercise GIFs on every session preview, tap one to enlarge). Local storage with SwiftData, iPhone ⇄ Watch sync with
 WatchConnectivity, heart rate and calories from HealthKit, rest alerts with local notifications.
 Exercise data comes from [ExerciseDB](https://github.com/ExerciseDB/exercisedb-api) (free hosted API, no key).
