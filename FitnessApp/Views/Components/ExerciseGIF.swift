@@ -20,6 +20,7 @@ struct ExerciseGIFView: View {
     @State private var image: UIImage?
     @State private var phase = Phase.loading
     @State private var attempt = 0
+    @State private var loadedKey: String?
 
     private enum Phase { case loading, loaded, failed }
 
@@ -47,11 +48,14 @@ struct ExerciseGIFView: View {
             if phase == .failed { attempt += 1 }
         })
         .task(id: "\(urlString ?? "")|\(exerciseId ?? "")|\(attempt)") {
+            let key = "\(urlString ?? "")|\(exerciseId ?? "")"
+            if loadedKey != key { image = nil } // a reused row must not keep the old exercise's GIF
             if image == nil { phase = .loading }
             let loaded = await GIFLoader.shared.image(for: urlString, exerciseId: exerciseId)
             if Task.isCancelled { return }
-            image = loaded ?? image
-            phase = image == nil ? .failed : .loaded
+            image = loaded
+            loadedKey = key
+            phase = loaded == nil ? .failed : .loaded
         }
     }
 }
