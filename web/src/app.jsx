@@ -43,7 +43,7 @@ export function App() {
       <main class="tab-scroll" ref={scroller}><Tab /></main>
       <nav class="tabbar"><div>
         {TABS.map(([k, label]) => (
-          <button key={k} class={nav.tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={k} />{label}</button>
+          <button key={k} class={nav.tab === k ? 'on' : ''} onClick={() => setTab(k)}><span class="tab-icon"><Icon name={k} /></span>{label}</button>
         ))}
       </div></nav>
       {s.active && !s.workoutHidden && <LiveWorkout />}
