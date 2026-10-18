@@ -45,6 +45,14 @@ export function setState(patch) {
   listeners.forEach((l) => l(state));
 }
 
+/** Calls `fn(state, previous)` after every change. Returns an unsubscribe function. */
+export function subscribe(fn) {
+  let prev = state;
+  const l = (s) => { const p = prev; prev = s; fn(s, p); };
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+
 export function useStore() {
   const [s, set] = useState(state);
   useEffect(() => { listeners.add(set); set(state); return () => listeners.delete(set); }, []);

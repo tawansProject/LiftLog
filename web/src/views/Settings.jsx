@@ -1,4 +1,6 @@
 import { ENV_LABEL, COMMIT } from '../lib/env.js';
+import { AccountCard } from './Account.jsx';
+import { accountsEnabled } from '../lib/supabase.js';
 import { useEffect, useState } from 'preact/hooks';
 import { useStore, setState, updateSettings, exportBackup, importBackup } from '../lib/store.js';
 import { push, toast } from '../nav.js';
@@ -55,6 +57,9 @@ export function SettingsTab() {
         </div>
       )}
 
+      <h2>Account</h2>
+      <AccountCard />
+
       <h2>Apple Watch</h2>
       <div class="card">
         <p class="small">LiftLog sends rest alerts as iPhone notifications. When your iPhone is locked and you wear your Watch, they tap your wrist and show the next set.</p>
@@ -99,7 +104,9 @@ export function SettingsTab() {
 
       <h2>Your data</h2>
       <div class="card">
-        <p class="small muted">Everything is stored on this iPhone only. Export a backup now and then.</p>
+        <p class="small muted">{accountsEnabled
+          ? 'Stored on this iPhone, and in your account when you’re signed in. A backup file is an extra copy you control.'
+          : 'Everything is stored on this iPhone only. Export a backup now and then.'}</p>
         <div class="gap8">
           <button class="btn secondary small" onClick={doExport}>Export backup</button>
           <label class="btn secondary small">Import backup<input type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={doImport} /></label>

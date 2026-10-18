@@ -9,6 +9,7 @@ import { RecordView } from './views/Summary.jsx';
 import { ProgressTab } from './views/Progress.jsx';
 import { HistoryTab } from './views/History.jsx';
 import { SettingsTab, WatchGuide } from './views/Settings.jsx';
+import { AuthPage, NewPasswordPage } from './views/Account.jsx';
 import { unlockAudio } from './lib/sound.js';
 import { IS_PRODUCTION, ENV, ENV_LABEL, BRANCH, COMMIT } from './lib/env.js';
 
@@ -17,6 +18,7 @@ const TABS = [['workouts', 'Workouts'], ['progress', 'Progress'], ['history', 'S
 const PAGES = {
   template: TemplateDetail, builder: Builder, review: Review, search: Search, config: ExerciseConfig,
   custom: CustomExercise, record: RecordView, gif: GifPage, watchGuide: WatchGuide,
+  auth: AuthPage, newPassword: NewPasswordPage,
 };
 
 export function App() {
