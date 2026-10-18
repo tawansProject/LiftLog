@@ -231,3 +231,11 @@ ol.instructions li { margin-bottom: 6px; }
 /* Contrast: current set and chips stand out more */
 .chip { border-color: rgba(255, 255, 255, 0.24); }
 .card.sug { border-left-width: 4px; }
+
+/* Non-production builds say so, so staging is never mistaken for the real app. */
+.env-ribbon {
+  position: fixed; top: calc(var(--safe-top) + 2px); left: 50%; transform: translateX(-50%); z-index: 70;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px; padding: 3px 10px; border-radius: 999px;
+  background: var(--orange); color: var(--on-white); pointer-events: none; white-space: nowrap;
+}
+.env-ribbon.preview, .env-ribbon.development { background: #b197fc; }

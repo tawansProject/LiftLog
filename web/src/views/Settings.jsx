@@ -1,3 +1,4 @@
+import { ENV_LABEL, COMMIT } from '../lib/env.js';
 import { useEffect, useState } from 'preact/hooks';
 import { useStore, setState, updateSettings, exportBackup, importBackup } from '../lib/store.js';
 import { push, toast } from '../nav.js';
@@ -76,7 +77,7 @@ export function SettingsTab() {
       <h2>Workout</h2>
       <div class="card">
         <div class="row between"><span>Weekly goal</span><Stepper value={st.weeklyGoal} min={1} unit="/wk" onChange={(v) => updateSettings({ weeklyGoal: Math.min(7, Math.max(1, v)) })} /></div>
-        <Toggle label="Update session after workout" sub="Saves what you actually lifted as next time's starting point" on={st.updateTemplateAfterWorkout} onChange={(v) => updateSettings({ updateTemplateAfterWorkout: v })} />
+        <Toggle label="Update plan after a session" sub="Saves what you actually lifted as the plan's next starting point" on={st.updateTemplateAfterWorkout} onChange={(v) => updateSettings({ updateTemplateAfterWorkout: v })} />
         <Toggle label="Keep screen awake" sub="During a workout" on={st.keepAwake} onChange={(v) => updateSettings({ keepAwake: v })} />
         <Toggle label="Beep when rest ends" sub="While LiftLog is open" on={st.sound} onChange={(v) => updateSettings({ sound: v })} />
       </div>
@@ -103,9 +104,9 @@ export function SettingsTab() {
           <button class="btn secondary small" onClick={doExport}>Export backup</button>
           <label class="btn secondary small">Import backup<input type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={doImport} /></label>
         </div>
-        <div class="small faint mt8">{s.templates.length} sessions · {s.records.length} workouts</div>
+        <div class="small faint mt8">{s.templates.length} workout plans · {s.records.length} sessions</div>
       </div>
-      <p class="center tiny faint mt16">LiftLog web 1.0</p>
+      <p class="center tiny faint mt16">LiftLog web 1.1 · {ENV_LABEL}{COMMIT ? ` · ${COMMIT}` : ''}</p>
     </div>
   );
 }

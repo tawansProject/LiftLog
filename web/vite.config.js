@@ -3,6 +3,14 @@ import preact from '@preact/preset-vite';
 
 export default defineConfig({
   plugins: [preact()],
+  define: {
+    // Vercel sets these during the build: production (main), preview (staging and other branches).
+    __APP_ENV__: JSON.stringify({
+      vercelEnv: process.env.VERCEL_ENV || 'development',
+      branch: process.env.VERCEL_GIT_COMMIT_REF || '',
+      commit: process.env.VERCEL_GIT_COMMIT_SHA || '',
+    }),
+  },
   server: {
     proxy: {
       // Local dev only: on Vercel, /api is served by the functions in api/.

@@ -10,6 +10,7 @@ import { ProgressTab } from './views/Progress.jsx';
 import { HistoryTab } from './views/History.jsx';
 import { SettingsTab, WatchGuide } from './views/Settings.jsx';
 import { unlockAudio } from './lib/sound.js';
+import { IS_PRODUCTION, ENV, ENV_LABEL, BRANCH, COMMIT } from './lib/env.js';
 
 const TABS = [['workouts', 'Workouts'], ['progress', 'Progress'], ['history', 'Sessions'], ['settings', 'Settings']];
 
@@ -43,6 +44,9 @@ export function App() {
       {nav.stack.map((p) => { const P = PAGES[p.type]; return <P {...p} key={p.key} />; })}
       {s.lastFinishedId && <RecordView id={s.lastFinishedId} justFinished />}
       {msg && <div class="toast">{msg}</div>}
+      {!IS_PRODUCTION && (
+        <div class={`env-ribbon ${ENV}`}>{ENV_LABEL}{ENV === 'preview' && BRANCH ? ` · ${BRANCH}` : ''}{COMMIT ? ` · ${COMMIT}` : ''}</div>
+      )}
     </>
   );
 }

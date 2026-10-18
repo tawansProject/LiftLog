@@ -9,6 +9,8 @@ reach Apple Watch. It replaces the native SwiftUI app in the repo root, which is
   - `api/exercises.js` proxies the free hosted exercise API (`oss.exercisedb.dev/api/v1`, no key) and caches it.
   - `api/push/schedule.js` waits until a rest ends and sends a Web Push; `api/push/key.js` serves the public key.
   - Env vars: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (generate with `npx web-push generate-vapid-keys`).
+- **Environments:** `main` → production, `staging` → staging URL, other branches → previews. See
+  [`docs/ENVIRONMENTS.md`](../docs/ENVIRONMENTS.md).
 - **Install on iPhone:** open the site in Safari → Share → Add to Home Screen → open from the Home Screen →
   Settings → Turn on rest alerts.
 
@@ -23,7 +25,10 @@ reach Apple Watch. It replaces the native SwiftUI app in the repo root, which is
 
 | # | Where |
 |---|---|
-| 1, 14 sessions, unlimited | `views/Sessions.jsx` (`SessionsTab`, `Builder`), `lib/store.js` templates |
+| 1, 14 workout plans (templates), unlimited | `views/Sessions.jsx` (`SessionsTab`, `Builder`), `lib/store.js` templates |
+| Quick session vs workout plan | `SessionsTab` start cards, `store.startQuickWorkout`, empty state in `views/Workout.jsx`, `store.saveRecordAsPlan` (summary) |
+| Front/back body map | `components.jsx` `BodyMap`, `lib/bodymap.js` |
+| GIFs | `components.jsx` `Thumb` (https link → `/api/gif` proxy by id → tap to retry), `api/gif.js`, cached by `public/sw.js`; large in the workout, next one in the rest banner |
 | 13 flow | Builder → `views/Search.jsx` (search, target muscles) → `ExerciseConfig` (sets/reps/rest, GIF) → `Review` (muscle overview) → `views/Workout.jsx` → `EffortSheet` → `views/Summary.jsx` |
 | 2 total timer | `LiveWorkout` header |
 | 3, 15 rest timers + alerts | `lib/store.js` (`startRest`), `lib/push.js`, `public/sw.js`, `api/push/schedule.js` |
