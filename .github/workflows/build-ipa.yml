@@ -26,7 +26,6 @@ jobs:
             -project FitnessApp.xcodeproj \
             -target FitnessApp \
             -configuration Release \
-            -sdk iphoneos \
             SYMROOT="$PWD/build" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
