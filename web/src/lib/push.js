@@ -34,15 +34,44 @@ export async function enableAlerts() {
   return sub.toJSON();
 }
 
+// The rest alert currently scheduled, kept across reloads so it can still be cancelled.
+const CURRENT_KEY = 'liftlog.restId';
+const currentRestId = () => { try { return localStorage.getItem(CURRENT_KEY) || ''; } catch { return ''; } };
+
 async function setRestId(id) {
+  try { if (id) localStorage.setItem(CURRENT_KEY, id); else localStorage.removeItem(CURRENT_KEY); } catch { /* private mode */ }
   try {
     const cache = await caches.open('liftlog-state');
     await cache.put(REST_KEY, new Response(id));
-  } catch { /* the alert still fires; it just can't be cancelled */ }
+  } catch { /* the server-side cancel still stops it */ }
 }
 
+/** Tells the server not to send this alert. */
+function cancelOnServer(restId) {
+  if (!restId) return;
+  fetch('/api/push/schedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({ cancel: restId }),
+  }).catch(() => { /* offline: the service worker drops it on arrival */ });
+}
+
+/** Removes rest alerts already showing (lock screen, Notification Center, Watch). */
+export async function clearShownRestAlerts() {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const shown = (await reg?.getNotifications({ tag: 'rest' })) || [];
+    shown.forEach((n) => n.close());
+  } catch { /* not supported here */ }
+}
+
+const newRestId = () => (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 16).padEnd(8, '0');
+
 export async function scheduleRest(subscription, endsAt, title, body) {
-  const restId = Math.random().toString(36).slice(2);
+  // A new rest replaces the previous one (next set, +15 s): stop the old alert.
+  cancelOnServer(currentRestId());
+  const restId = newRestId();
   await setRestId(restId);
   try {
     await fetch('/api/push/schedule', {
@@ -56,8 +85,13 @@ export async function scheduleRest(subscription, endsAt, title, body) {
   }
 }
 
-/** The service worker drops any alert whose id no longer matches. */
-export const cancelRest = () => setRestId('');
+/** Stops the pending alert (on the server, and in the service worker as a backup)
+ * and clears any rest alert already on screen. */
+export function cancelRest() {
+  cancelOnServer(currentRestId());
+  setRestId('');
+  clearShownRestAlerts();
+}
 
 export async function sendTest(subscription) {
   const res = await fetch('/api/push/schedule', {

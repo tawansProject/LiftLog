@@ -1,6 +1,6 @@
 import { useStore, setState, getState, saveTemplate, deleteTemplate, duplicateTemplate, startWorkout, startQuickWorkout } from '../lib/store.js';
 import { push, pop, clear, toast } from '../nav.js';
-import { TopBar, Page, BottomBar, Thumb, MuscleOverview, MuscleChips, BodyMap } from '../components.jsx';
+import { TopBar, Page, BottomBar, Thumb, MuscleOverview, MuscleChips, BodyMap, SwipeRow } from '../components.jsx';
 import { loadsPlanned, groupTotals, GROUPS } from '../lib/muscles.js';
 import { setSummary, rest, uid, dateLabel } from '../lib/format.js';
 import { suggestionFor } from '../lib/history.js';
@@ -52,14 +52,21 @@ export function SessionsTab() {
       )}
       {[...s.templates].sort((a, b) => b.updatedAt - a.updatedAt).map((t) => {
         const groups = groupTotals(loadsPlanned(t.items)).slice(0, 4);
+        const actions = [
+          { kind: 'edit', label: 'Edit', onClick: () => { setState({ draft: structuredClone(t) }); push({ type: 'builder' }); } },
+          { kind: 'delete', label: 'Delete', onClick: () => { if (confirm(`Delete "${t.name}"? Your session history stays.`)) { deleteTemplate(t.id); toast('Plan deleted'); } } },
+        ];
         return (
-          <button class="card tap" key={t.id} onClick={() => push({ type: 'template', id: t.id })}>
-            <div class="row between"><h3 class="ellipsis">{t.name || 'Untitled plan'}</h3><span class="faint">›</span></div>
-            <div class="small muted mb8">{t.items.length} exercise{t.items.length === 1 ? '' : 's'} · {lastDone(t)}</div>
-            <div class="gap8">{groups.map((g) => <span class="chip" key={g.group}><span class="dot" style={{ background: GROUPS[g.group].color }} />{GROUPS[g.group].label}</span>)}</div>
-          </button>
+          <SwipeRow key={t.id} actions={actions}>
+            <button class="card tap" onClick={() => push({ type: 'template', id: t.id })}>
+              <div class="row between"><h3 class="ellipsis">{t.name || 'Untitled plan'}</h3><span class="faint">›</span></div>
+              <div class="small muted mb8">{t.items.length} exercise{t.items.length === 1 ? '' : 's'} · {lastDone(t)}</div>
+              <div class="gap8">{groups.map((g) => <span class="chip" key={g.group}><span class="dot" style={{ background: GROUPS[g.group].color }} />{GROUPS[g.group].label}</span>)}</div>
+            </button>
+          </SwipeRow>
         );
       })}
+      {s.templates.length > 0 && <p class="small faint center">Swipe a plan left to edit or delete it.</p>}
     </div>
   );
 }
