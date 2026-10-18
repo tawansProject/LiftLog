@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { pop } from './nav.js';
 import { GROUPS, groupTotals } from './lib/muscles.js';
 import { capitalize, SET_KINDS } from './lib/format.js';
@@ -222,4 +222,82 @@ export function Icon({ name }) {
     settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   }[name];
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={p} /></svg>;
+}
+
+const ACTION_W = 78;
+let closeOpenRow = null; // only one row open at a time
+
+const ICONS = {
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  delete: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6',
+};
+
+/** List row that slides left to reveal actions (Edit, Delete). Tapping the row
+ * still opens it; a swipe never counts as a tap. */
+export function SwipeRow({ actions, children }) {
+  const width = actions.length * ACTION_W;
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const g = useRef({});
+  const close = () => setOffset(0);
+
+  useEffect(() => () => { if (closeOpenRow === close) closeOpenRow = null; }, []);
+
+  const down = (e) => {
+    g.current = { x: e.clientX, y: e.clientY, start: offset, dir: null, moved: false, id: e.pointerId };
+  };
+  const move = (e) => {
+    const s = g.current;
+    if (s.x == null || e.pointerId !== s.id) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (!s.dir) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.dir = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (s.dir === 'x') {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        if (closeOpenRow && closeOpenRow !== close) closeOpenRow();
+        setDragging(true);
+      }
+    }
+    if (s.dir !== 'x') return;
+    s.moved = true;
+    s.cur = Math.min(0, Math.max(-width - 24, s.start + dx));
+    setOffset(s.cur);
+  };
+  const up = () => {
+    const s = g.current;
+    if (s.dir === 'x') {
+      const open = (s.cur ?? offset) < -width / 2;
+      setOffset(open ? -width : 0);
+      closeOpenRow = open ? close : null;
+    }
+    setDragging(false);
+    g.current = { moved: s.moved };
+  };
+  // A swipe (or a tap that closes an open row) must not open the item.
+  const clickCapture = (e) => {
+    if (g.current.moved || offset !== 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!g.current.moved) close();
+      g.current = {};
+    }
+  };
+
+  return (
+    <div class="swipe">
+      <div class="swipe-actions" style={{ width, visibility: offset === 0 && !dragging ? 'hidden' : 'visible' }}>
+        {actions.map((a) => (
+          <button key={a.label} class={a.kind} onClick={() => { close(); a.onClick(); }} aria-label={a.label}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={ICONS[a.kind]} /></svg>
+            {a.label}
+          </button>
+        ))}
+      </div>
+      <div class={`swipe-content ${dragging ? 'dragging' : ''}`} style={{ transform: `translateX(${offset}px)` }}
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={clickCapture}>
+        {children}
+      </div>
+    </div>
+  );
 }

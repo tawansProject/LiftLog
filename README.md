@@ -2,6 +2,13 @@
 
 > **The current app is the web app in [`web/`](web/README.md)** (installable on iPhone, rest alerts on Apple Watch).
 > The native SwiftUI code below is paused and kept for reference.
+>
+> | Environment | Branch | Where |
+> |---|---|---|
+> | Production | `main` | Vercel production domain |
+> | Staging | `staging` | https://liftlog-git-staging-tawansprojects-projects.vercel.app |
+>
+> Changes go feature branch → `staging` (try it) → `main` (production). Details: [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md).
 
 Native SwiftUI app (iOS 17+, watchOS 10+) with a high-contrast dark blue theme (`Views/Components/Theme.swift`; exercise GIFs on every session preview, tap one to enlarge). Local storage with SwiftData, iPhone ⇄ Watch sync with
 WatchConnectivity, heart rate and calories from HealthKit, rest alerts with local notifications.
