@@ -12,6 +12,9 @@ struct WorkoutSummaryView: View {
     var isFreshlyFinished = false
     @State private var refreshing = false
     @State private var editingIndex: Int?
+    @State private var askPlanName = false
+    @State private var planName = ""
+    @State private var savedPlanName: String?
 
     var body: some View {
         let exercises = record.exercises
@@ -30,7 +33,7 @@ struct WorkoutSummaryView: View {
                         }
                         Text(record.startedAt.formatted(date: .complete, time: .shortened))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                     }
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         StatTile(title: "Total time", value: Format.duration(record.duration), symbol: "timer")
@@ -41,6 +44,31 @@ struct WorkoutSummaryView: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                     caloriesRow
                 }
+
+                if record.templateID == nil || savedPlanName != nil {
+                    Section {
+                        if let savedPlanName {
+                            Label("Saved as workout plan \"\(savedPlanName)\"", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Button {
+                                planName = record.name == "Quick session" ? "" : record.name
+                                askPlanName = true
+                            } label: {
+                                Label("Save as workout plan", systemImage: "square.and.arrow.down")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.white)
+                            .disabled(!exercises.contains(where: \.hasProgress))
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                        }
+                    } footer: {
+                        if savedPlanName == nil {
+                            Text("Quick session. Save it as a plan to repeat and edit it later, starting from what you lifted today.")
+                        }
+                    }
+                }
     
                 if !prs.isEmpty {
                     Section("Personal records") {
@@ -50,13 +78,15 @@ struct WorkoutSummaryView: View {
                                 Text(pr.exerciseName)
                                 Spacer()
                                 Text("\(Format.weight(pr.weight)) × \(pr.reps)").bold()
-                                Text("was \(Format.weight(pr.previousBest))").font(.caption).foregroundStyle(.secondary)
+                                Text("was \(Format.weight(pr.previousBest))").font(.caption).foregroundStyle(Theme.subtext)
                             }
                         }
                     }
                 }
     
                 Section("Muscles worked") {
+                    BodyMapView(loads: MuscleAnalysis.loads(logged: exercises), height: 210)
+                        .padding(.vertical, 8)
                     MuscleOverview(loads: MuscleAnalysis.loads(logged: exercises))
                         .padding(.vertical, 6)
                 }
@@ -70,7 +100,7 @@ struct WorkoutSummaryView: View {
                                 Text(exercise.name).font(.headline)
                                 Spacer()
                                 if exercise.status == .skipped || !exercise.hasProgress {
-                                    Text("Skipped").font(.caption).foregroundStyle(.secondary)
+                                    Text("Skipped").font(.caption).foregroundStyle(Theme.subtext)
                                 }
                                 Button { editingIndex = index } label: {
                                     Image(systemName: "pencil.circle")
@@ -85,7 +115,7 @@ struct WorkoutSummaryView: View {
                                     Text("Effort \(effort) · \(EffortScale.label(effort))")
                                         .foregroundStyle(EffortScale.color(effort))
                                 } else if exercise.hasProgress {
-                                    Text("No effort rating").foregroundStyle(.secondary)
+                                    Text("No effort rating").foregroundStyle(Theme.subtext)
                                 }
                                 if exercise.injured {
                                     Label(exercise.injuryNote.isEmpty ? "Injured" : exercise.injuryNote, systemImage: "bandage.fill")
@@ -117,6 +147,13 @@ struct WorkoutSummaryView: View {
                 }
             }
         }
+        .alert("Save as workout plan", isPresented: $askPlanName) {
+            TextField("Plan name", text: $planName)
+            Button("Save") { saveAsPlan() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The exercises, sets and weights from this session become a reusable plan.")
+        }
         .sheet(item: Binding(get: { editingIndex.map(EditIndex.init) }, set: { editingIndex = $0?.value })) { item in
             if record.exercises.indices.contains(item.value) {
                 EffortSheet(exercise: record.exercises[item.value], isLast: true) { effort, injured, note in
@@ -132,6 +169,24 @@ struct WorkoutSummaryView: View {
         }
     }
 
+    /// Turns this quick session into a reusable plan and links the record to it.
+    private func saveAsPlan() {
+        let trimmed = planName.trimmingCharacters(in: .whitespaces)
+        let name = trimmed.isEmpty ? "Plan \(record.startedAt.formatted(date: .abbreviated, time: .omitted))" : trimmed
+        let items = record.exercises.filter(\.hasProgress).map { log in
+            var plan = log.asPlanned()
+            plan.id = UUID()
+            return plan
+        }
+        guard !items.isEmpty else { return }
+        let template = SessionTemplate(name: name, items: items)
+        template.lastPerformedAt = record.startedAt
+        context.insert(template)
+        record.templateID = template.id
+        try? context.save()
+        savedPlanName = name
+    }
+
     /// History for this exercise up to and including this workout, newest first.
     private func nextHistory(for exercise: LoggedExercise) -> [LoggedExercise] {
         let earlier = HistoryService.logs(for: exercise.exerciseId, in: records, before: record.startedAt)
@@ -145,15 +200,15 @@ struct WorkoutSummaryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let kcal = record.activeCalories {
                     Text("\(Int(kcal.rounded())) kcal").font(.headline)
-                    Text(record.calorieSource?.label ?? "").font(.caption).foregroundStyle(.secondary)
+                    Text(record.calorieSource?.label ?? "").font(.caption).foregroundStyle(Theme.subtext)
                 } else {
                     Text("Calculating calories…").font(.subheadline)
-                    Text("Reading heart rate from Apple Health").font(.caption).foregroundStyle(.secondary)
+                    Text("Reading heart rate from Apple Health").font(.caption).foregroundStyle(Theme.subtext)
                 }
                 if let hr = record.averageHeartRate {
                     Text("Avg heart rate \(Int(hr)) bpm" + (record.maxHeartRate.map { " · max \(Int($0))" } ?? ""))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.subtext)
                 }
             }
             Spacer()

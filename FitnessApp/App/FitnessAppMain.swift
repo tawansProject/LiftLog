@@ -37,7 +37,7 @@ struct RootView: View {
                 .tabItem { Label("Workouts", systemImage: "dumbbell.fill") }
                 .tag(0)
             HistoryListView()
-                .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
+                .tabItem { Label("Sessions", systemImage: "clock.arrow.circlepath") }
                 .tag(1)
             ProgressTabView()
                 .tabItem { Label("Progress", systemImage: "chart.bar.xaxis") }

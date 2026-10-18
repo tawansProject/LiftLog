@@ -1,6 +1,6 @@
 # LiftLog: personal strength-training app for iPhone + Apple Watch
 
-Native SwiftUI app (iOS 17+, watchOS 10+) with a dark blue theme (`Views/Components/Theme.swift`; exercise GIFs on every session preview, tap one to enlarge). Local storage with SwiftData, iPhone ⇄ Watch sync with
+Native SwiftUI app (iOS 17+, watchOS 10+) with a high-contrast dark blue theme (`Views/Components/Theme.swift`; exercise GIFs on every session preview, tap one to enlarge). Local storage with SwiftData, iPhone ⇄ Watch sync with
 WatchConnectivity, heart rate and calories from HealthKit, rest alerts with local notifications.
 Exercise data comes from [ExerciseDB](https://github.com/ExerciseDB/exercisedb-api) (free hosted API, no key).
 
@@ -31,6 +31,9 @@ If the project ever fails to open, `project.yml` can regenerate it with XcodeGen
 | Requirement | Where |
 |---|---|
 | 1, 14 Sessions with many exercises, unlimited saved sessions | `Views/Sessions/SessionListView.swift`, `SessionBuilderView.swift`, `Models/Persistence.swift` (`SessionTemplate`) |
+| Workout plans vs Quick session. Plans are reusable templates; starting one records a session. A quick session starts right away with no plan, exercises are added on the go, and it's saved as a session (optionally "Save as workout plan" from its summary) | `SessionListView` (`StartOptionsRow`), `WorkoutEngine.startQuick`, `LiveWorkoutView` (`QuickStartCard`), `WorkoutSummaryView.saveAsPlan` |
+| Front/back body map with the worked muscles highlighted (before starting and in the summary) | `Views/Components/BodyMapView.swift` |
+| Exercise GIFs: limited parallel downloads with retries, disk cache, fresh link looked up by exercise id when a saved one is broken; shown large during the workout and for the next exercise during rest | `Views/Components/ExerciseGIF.swift`, `LiveWorkoutView` |
 | 13 Flow: create → search → target muscles → sets/reps/rest → more → confirm (muscle overview) → focus on current exercise → done + effort → finish (early allowed) → summary | `SessionBuilderView` → `ExerciseSearchView` → `ExerciseConfigView` → `ReviewSessionView` → `Views/Workout/LiveWorkoutView` → `EffortSheet` → `WorkoutSummaryView` |
 | 2 Total-time counter (counts up, no limit) | `LiveWorkoutView` header (`ElapsedHeader`), Watch header |
 | 3, 15 Rest between sets and between exercises + notification | `Workout/WorkoutEngine.swift` (`startRest`), `Services/NotificationManager.swift`, Watch haptic in `WatchSessionStore` |

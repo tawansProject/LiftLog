@@ -37,11 +37,11 @@ struct SettingsView: View {
                         Stepper(value: $weeklyGoal, in: 1...7) {
                             LabeledContent("Weekly goal", value: "\(weeklyGoal) workouts")
                         }
-                        Toggle("Save last weights into the session", isOn: $updateTemplate)
+                        Toggle("Save last weights into the plan", isOn: $updateTemplate)
                     } header: {
                         Text("Progress")
                     } footer: {
-                        Text("On: after a workout, the saved session is updated with what you actually lifted, so next time starts from your previous record. Off: the session keeps its own numbers, and only newer records of the same exercise from other sessions are pulled in.")
+                        Text("On: after a session, its workout plan is updated with what you actually lifted, so next time starts from your previous record. Off: the plan keeps its own numbers, and only newer records of the same exercise from other sessions are pulled in.")
                     }
     
                     Section {
@@ -53,7 +53,7 @@ struct SettingsView: View {
                             }
                         }
                         if let healthMessage {
-                            Text(healthMessage).font(.caption).foregroundStyle(.secondary)
+                            Text(healthMessage).font(.caption).foregroundStyle(Theme.subtext)
                         }
                     } header: {
                         Text("Apple Watch & Health")
@@ -69,7 +69,7 @@ struct SettingsView: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 80)
-                            Text("kg").foregroundStyle(.secondary)
+                            Text("kg").foregroundStyle(Theme.subtext)
                         }
                         Stepper(value: $age, in: 12...100) { LabeledContent("Age", value: "\(age)") }
                         Picker("Sex", selection: $sex) {

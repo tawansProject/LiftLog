@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import ImageIO
 
 /// Wrapping row of muscle chips. Target muscles are filled, secondary ones outlined.
 struct MuscleChips: View {
@@ -26,8 +25,8 @@ struct MuscleChips: View {
             .padding(.horizontal, compact ? 6 : 8)
             .padding(.vertical, compact ? 2 : 4)
             .foregroundStyle(filled ? Color.white : color)
-            .background(filled ? color : color.opacity(0.12), in: Capsule())
-            .overlay(Capsule().stroke(color.opacity(filled ? 0 : 0.6), lineWidth: 1))
+            .background(filled ? color : color.opacity(0.22), in: Capsule())
+            .overlay(Capsule().stroke(color.opacity(filled ? 0 : 0.85), lineWidth: 1))
     }
 }
 
@@ -68,79 +67,6 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Animated GIF from ExerciseDB, decoded with ImageIO and cached in memory.
-struct ExerciseGIFView: View {
-    var urlString: String?
-    @State private var image: UIImage?
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(Theme.card)
-            if let image {
-                AnimatedImageView(image: image)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .task(id: urlString) {
-            image = await GIFLoader.shared.image(for: urlString)
-        }
-    }
-}
-
-private struct AnimatedImageView: UIViewRepresentable {
-    var image: UIImage
-
-    func makeUIView(context: Context) -> UIImageView {
-        let view = UIImageView()
-        view.contentMode = .scaleAspectFit
-        view.backgroundColor = .white
-        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-        return view
-    }
-
-    func updateUIView(_ view: UIImageView, context: Context) {
-        view.image = image
-        view.startAnimating()
-    }
-}
-
-actor GIFLoader {
-    static let shared = GIFLoader()
-    private var cache: [String: UIImage] = [:]
-
-    func image(for urlString: String?) async -> UIImage? {
-        guard let urlString, let url = URL(string: urlString) else { return nil }
-        if let cached = cache[urlString] { return cached }
-        guard let response = try? await URLSession.shared.data(from: url),
-              let image = Self.decode(response.0) else { return nil }
-        cache[urlString] = image
-        return image
-    }
-
-    private static func decode(_ data: Data) -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return UIImage(data: data) }
-        let count = CGImageSourceGetCount(source)
-        guard count > 1 else { return UIImage(data: data) }
-        var frames: [UIImage] = []
-        var duration: Double = 0
-        for i in 0..<count {
-            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
-            frames.append(UIImage(cgImage: cg))
-            let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any]
-            let gif = props?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
-            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double)
-                ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double) ?? 0.1
-            duration += delay < 0.02 ? 0.1 : delay
-        }
-        return UIImage.animatedImage(with: frames, duration: duration)
-    }
-}
-
 /// Card showing the progressive-overload suggestion, with an optional Apply button.
 struct SuggestionCard: View {
     var suggestion: OverloadSuggestion
@@ -153,7 +79,7 @@ struct SuggestionCard: View {
             if let lastSummary {
                 Text("Last time: \(lastSummary)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
             }
             HStack(alignment: .top) {
                 Image(systemName: suggestion.action.symbol)
@@ -161,7 +87,7 @@ struct SuggestionCard: View {
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(suggestion.headline).font(.subheadline.bold())
-                    Text(suggestion.reason).font(.caption).foregroundStyle(.secondary)
+                    Text(suggestion.reason).font(.caption).foregroundStyle(Theme.subtext)
                 }
                 Spacer(minLength: 0)
                 if let onApply, suggestion.isChange {
@@ -172,7 +98,8 @@ struct SuggestionCard: View {
             }
         }
         .padding(10)
-        .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.45), lineWidth: 1))
     }
 
     private var color: Color {
@@ -194,7 +121,7 @@ struct MuscleOverview: View {
         let maxGroup = groups.map(\.score).max() ?? 1
         VStack(alignment: .leading, spacing: 14) {
             if groups.isEmpty {
-                Text("No muscles yet. Add an exercise.").foregroundStyle(.secondary)
+                Text("No muscles yet. Add an exercise.").foregroundStyle(Theme.subtext)
             }
             ForEach(groups) { entry in
                 VStack(alignment: .leading, spacing: 6) {
@@ -205,10 +132,10 @@ struct MuscleOverview: View {
                         Spacer()
                         Text("\(Format.number(entry.score)) sets")
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                     }
                     GeometryReader { geo in
-                        Capsule().fill(entry.group.color.opacity(0.15))
+                        Capsule().fill(entry.group.color.opacity(0.25))
                             .overlay(alignment: .leading) {
                                 Capsule().fill(entry.group.color)
                                     .frame(width: geo.size.width * entry.score / maxGroup)
@@ -218,13 +145,13 @@ struct MuscleOverview: View {
                     let muscles = loads.filter { $0.group == entry.group }
                     Text(muscles.map { "\($0.muscle.capitalized) \(Format.number($0.score))" }.joined(separator: " · "))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.subtext)
                 }
             }
             if !groups.isEmpty {
                 Text("Counts working sets: target muscles count 1, secondary muscles count ½.")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.faint)
             }
         }
     }
@@ -247,7 +174,7 @@ struct StatTile: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             if let detail {
-                Text(detail).font(.caption2).foregroundStyle(.secondary)
+                Text(detail).font(.caption2).foregroundStyle(Theme.subtext)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

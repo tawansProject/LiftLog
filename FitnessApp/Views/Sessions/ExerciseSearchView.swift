@@ -97,7 +97,7 @@ struct ExerciseSearchView: View {
                     if let errorMessage {
                         Label(errorMessage, systemImage: "wifi.exclamationmark")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                     }
                 } header: {
                     Text("Exercise Library")
@@ -208,7 +208,7 @@ struct ExerciseResultRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ExerciseGIFView(urlString: dto.gifUrl)
+                ExerciseGIFView(urlString: dto.gifUrl, exerciseId: dto.exerciseId)
                     .frame(width: 56, height: 56)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dto.displayName).font(.subheadline.bold())
@@ -216,7 +216,7 @@ struct ExerciseResultRow: View {
                     if !dto.equipments.isEmpty {
                         Text(dto.equipments.joined(separator: ", ").capitalized)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                     }
                 }
                 Spacer(minLength: 0)

@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Every saved workout, grouped by month.
+/// Every recorded session (from a plan or quick), grouped by month.
 struct HistoryListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \WorkoutRecord.startedAt, order: .reverse) private var records: [WorkoutRecord]
@@ -21,7 +21,7 @@ struct HistoryListView: View {
                     list
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle("Sessions")
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Picker("View", selection: $showDashboard) {
@@ -39,8 +39,8 @@ struct HistoryListView: View {
             List {
                 Group {
                     if records.isEmpty {
-                        ContentUnavailableView("No workouts yet", systemImage: "clock",
-                                               description: Text("Finished workouts show up here."))
+                        ContentUnavailableView("No sessions yet", systemImage: "clock",
+                                               description: Text("Finished sessions, from a plan or quick, show up here."))
                     }
                     ForEach(months, id: \.self) { month in
                         Section(month.formatted(.dateTime.month(.wide).year())) {
@@ -78,6 +78,13 @@ struct HistoryRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(record.name).font(.headline)
+                if record.templateID == nil {
+                    Label("Quick", systemImage: "bolt.fill")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .foregroundStyle(Theme.accent)
+                        .background(Theme.accentSoft, in: Capsule())
+                }
                 if record.finishedEarly {
                     Text("Early").font(.caption2.bold()).padding(.horizontal, 5).padding(.vertical, 1)
                         .background(Color.orange.opacity(0.2), in: Capsule())
@@ -88,11 +95,11 @@ struct HistoryRow: View {
                 Spacer()
                 Text(record.startedAt.formatted(.dateTime.weekday(.abbreviated).day()))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
             }
             Text(summary(exercises))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.subtext)
         }
     }
 

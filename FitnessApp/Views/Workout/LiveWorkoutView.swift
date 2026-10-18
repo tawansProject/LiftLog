@@ -36,9 +36,17 @@ struct LiveWorkoutView: View {
                         }
                     }
                     .confirmationDialog(finishTitle(workout), isPresented: $confirmFinish, titleVisibility: .visible) {
-                        Button(workout.allDone ? "Finish workout" : "Finish early") { engine.requestFinish() }
+                        if hasLoggedSets(workout) {
+                            Button(workout.allDone ? "Finish workout" : "Finish early") { engine.requestFinish() }
+                        }
                         Button("Discard workout", role: .destructive) { confirmDiscard = true }
                         Button("Keep going", role: .cancel) {}
+                    }
+                    .task {
+                        // Quick session: go straight to picking the first exercise.
+                        guard workout.exercises.isEmpty else { return }
+                        try? await Task.sleep(nanoseconds: 450_000_000)
+                        if engine.workout?.exercises.isEmpty == true { showAddExercise = true }
                     }
                     .alert("Discard this workout?", isPresented: $confirmDiscard) {
                         Button("Discard", role: .destructive) { engine.discard() }
@@ -55,7 +63,12 @@ struct LiveWorkoutView: View {
                 set: { shown in if !shown { engine.cancelEffort() } })
     }
 
+    private func hasLoggedSets(_ workout: ActiveWorkout) -> Bool {
+        workout.exercises.contains(where: \.hasProgress)
+    }
+
     private func finishTitle(_ workout: ActiveWorkout) -> String {
+        if !hasLoggedSets(workout) { return "Nothing logged yet" }
         if workout.allDone {
             return workout.unratedIndex == nil ? "All exercises done" : "All exercises done. You'll rate the last one first."
         }
@@ -76,7 +89,7 @@ struct LiveWorkoutView: View {
                 Text(workout.name).font(.subheadline.bold()).lineLimit(1)
                 Text(workout.startedAt, style: .timer)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -90,11 +103,14 @@ struct LiveWorkoutView: View {
         ScrollView {
             VStack(spacing: 16) {
                 ElapsedHeader(workout: workout)
+                if workout.exercises.isEmpty {
+                    QuickStartCard { showAddExercise = true }
+                }
                 if workout.exercises.indices.contains(workout.currentIndex) {
                     CurrentExerciseCard(index: workout.currentIndex, exercise: workout.exercises[workout.currentIndex],
                                         history: HistoryService.logs(for: workout.exercises[workout.currentIndex].exerciseId, in: records))
                 }
-                if workout.allDone {
+                if workout.allDone && hasLoggedSets(workout) {
                     Button { engine.requestFinish() } label: {
                         Label("Finish & see summary", systemImage: "flag.checkered")
                             .font(.headline)
@@ -104,11 +120,13 @@ struct LiveWorkoutView: View {
                     .buttonStyle(.white)
                     .tint(.green)
                 }
-                ExerciseQueue(workout: workout)
-                Button { showAddExercise = true } label: {
-                    Label("Add exercise", systemImage: "plus")
+                if !workout.exercises.isEmpty {
+                    ExerciseQueue(workout: workout)
+                    Button { showAddExercise = true } label: {
+                        Label("Add exercise", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
             .padding()
         }
@@ -131,7 +149,8 @@ struct ElapsedHeader: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("Exercise \(workout.currentIndex + 1) of \(workout.exercises.count)")
+                Text(workout.exercises.isEmpty ? "No exercises yet"
+                     : "Exercise \(workout.currentIndex + 1) of \(workout.exercises.count)")
                     .font(.subheadline.bold())
                 Text("\(setsDone)/\(setsTotal) sets").font(.caption).foregroundStyle(Theme.onHighlight.opacity(0.6))
                 ProgressView(value: Double(setsDone), total: Double(max(setsTotal, 1)))
@@ -146,12 +165,40 @@ struct ElapsedHeader: View {
     }
 }
 
+/// Empty quick session: prompt for the first exercise.
+struct QuickStartCard: View {
+    var onAdd: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "bolt.fill")
+                .font(.largeTitle)
+                .foregroundStyle(Theme.accent)
+            Text("Quick session started").font(.title3.bold())
+            Text("Add exercises as you go. When you finish, it's saved to your sessions, and you can keep it as a workout plan.")
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Theme.subtext)
+            Button(action: onAdd) {
+                Label("Add first exercise", systemImage: "magnifyingglass")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.white)
+        }
+        .padding()
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.outline, lineWidth: 1))
+    }
+}
+
 struct CurrentExerciseCard: View {
     @EnvironmentObject private var engine: WorkoutEngine
     var index: Int
     var exercise: LoggedExercise
     var history: [LoggedExercise]
-    @State private var showGIF = true
+    /// Remembered across workouts; the animation is on unless turned off here.
+    @AppStorage("live.showGIF") private var showGIF = true
+    @State private var showPreview = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -161,14 +208,28 @@ struct CurrentExerciseCard: View {
                     MuscleChips(target: exercise.targetMuscles, secondary: exercise.secondaryMuscles, compact: true)
                 }
                 Spacer()
-                if exercise.gifUrl != nil {
+                if hasAnimation {
                     Button { showGIF.toggle() } label: {
-                        Image(systemName: showGIF ? "photo.fill" : "photo")
+                        Image(systemName: showGIF ? "eye.slash" : "play.rectangle")
+                            .accessibilityLabel(showGIF ? "Hide animation" : "Show animation")
                     }
                 }
             }
-            if showGIF {
-                ExerciseGIFView(urlString: exercise.gifUrl).frame(height: 180)
+            if showGIF && hasAnimation {
+                Button { showPreview = true } label: {
+                    ExerciseGIFView(urlString: exercise.gifUrl, exerciseId: exercise.exerciseId)
+                        .frame(height: 230)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.caption.bold())
+                                .padding(6)
+                                .foregroundStyle(.white)
+                                .background(Theme.background.opacity(0.7), in: Circle())
+                                .padding(8)
+                        }
+                }
+                .buttonStyle(.plain)
+                .id(exercise.exerciseId) // restart the animation for each new exercise
             }
 
             if let suggestion = ProgressionEngine.suggest(history: Array(history.prefix(5))),
@@ -206,10 +267,20 @@ struct CurrentExerciseCard: View {
             }
             Text("Rest \(Format.rest(exercise.restBetweenSets)) between sets, \(Format.rest(exercise.restAfterExercise)) before the next exercise")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.subtext)
         }
         .padding()
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.outline, lineWidth: 1))
+        .sheet(isPresented: $showPreview) {
+            ExercisePreviewSheet(name: exercise.name, gifUrl: exercise.gifUrl, targetMuscles: exercise.targetMuscles,
+                                 secondaryMuscles: exercise.secondaryMuscles, exerciseId: exercise.exerciseId)
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    private var hasAnimation: Bool {
+        ExerciseMedia.hasAnimation(gifUrl: exercise.gifUrl, exerciseId: exercise.exerciseId)
     }
 
     private func label(for setIndex: Int) -> String {
@@ -243,7 +314,7 @@ struct LiveSetRow: View {
                 }
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("Reps").font(.caption2).foregroundStyle(.secondary)
+                Text("Reps").font(.caption2).foregroundStyle(Theme.subtext)
                 TextField("Reps", value: Binding(get: { set.reps },
                                                  set: { engine.updateSet(exercise: exerciseIndex, set: setIndex, reps: $0) }),
                           format: .number)
@@ -251,7 +322,7 @@ struct LiveSetRow: View {
                     .font(.title3.monospacedDigit())
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text("kg").font(.caption2).foregroundStyle(.secondary)
+                Text("kg").font(.caption2).foregroundStyle(Theme.subtext)
                 TextField("kg", value: Binding(get: { set.weight },
                                                set: { engine.updateSet(exercise: exerciseIndex, set: setIndex, weight: $0) }),
                           format: .number.precision(.fractionLength(0...2)))
@@ -262,19 +333,20 @@ struct LiveSetRow: View {
             if set.reps != set.targetReps || set.weight != set.targetWeight {
                 Text("plan \(set.targetReps)×\(Format.number(set.targetWeight))")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
             }
             Button {
                 engine.toggleSet(exercise: exerciseIndex, set: setIndex)
             } label: {
                 Image(systemName: set.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 34))
-                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Theme.highlight : Color.secondary))
+                    .foregroundStyle(set.isDone ? Color.green : (isNext ? Theme.highlight : Theme.subtext))
             }
             .buttonStyle(.plain)
         }
         .padding(8)
-        .background(isNext ? Color.accentColor.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(isNext ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(isNext ? Theme.accent : Color.clear, lineWidth: 1))
         .opacity(set.isDone ? 0.7 : 1)
     }
 
@@ -304,7 +376,7 @@ struct ExerciseQueue: View {
                             Text(exercise.name).font(.subheadline)
                             Text(detail(exercise))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.subtext)
                         }
                         Spacer()
                         if exercise.status == .pending && index != workout.currentIndex {
@@ -314,7 +386,7 @@ struct ExerciseQueue: View {
                         }
                     }
                     .padding(10)
-                    .background(index == workout.currentIndex ? Color.accentColor.opacity(0.1) : Theme.card,
+                    .background(index == workout.currentIndex ? Theme.accentSoft : Theme.card,
                                 in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
@@ -342,7 +414,7 @@ struct ExerciseQueue: View {
         switch exercise.status {
         case .completed: return .green
         case .skipped: return .gray
-        case .pending: return index == workout.currentIndex ? .accentColor : .secondary
+        case .pending: return index == workout.currentIndex ? .accentColor : Theme.subtext
         }
     }
 }
@@ -368,8 +440,17 @@ struct RestBanner: View {
                     EmptyView()
                 }
                 .tint(.orange)
-                if let next = engine.nextUpDescription() {
-                    Text(next).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 10) {
+                    if let upcoming = engine.upNextExercise(),
+                       ExerciseMedia.hasAnimation(gifUrl: upcoming.gifUrl, exerciseId: upcoming.exerciseId) {
+                        ExerciseGIFView(urlString: upcoming.gifUrl, exerciseId: upcoming.exerciseId)
+                            .frame(width: 64, height: 64)
+                            .id(upcoming.exerciseId)
+                    }
+                    if let next = engine.nextUpDescription() {
+                        Text(next).font(.caption).foregroundStyle(Theme.subtext)
+                    }
+                    Spacer(minLength: 0)
                 }
                 HStack {
                     Button("+30 s") { engine.addRest(seconds: 30) }
