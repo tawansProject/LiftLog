@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Create or edit a session: name it, search and add exercises, adjust sets,
+/// Create or edit a workout plan: name it, search and add exercises, adjust sets,
 /// reps, weight and rest, then review the muscle overview and confirm.
 struct SessionBuilderView: View {
     @Environment(\.dismiss) private var dismiss
@@ -27,7 +27,7 @@ struct SessionBuilderView: View {
             List {
                 Group {
                     Section("Name") {
-                        TextField("e.g. Session A: Push", text: $name)
+                        TextField("e.g. Push day", text: $name)
                     }
                     Section {
                         ForEach(items) { item in
@@ -54,7 +54,7 @@ struct SessionBuilderView: View {
                 .listRowBackground(Theme.card)
             }
             .themedList()
-            .navigationTitle(template == nil ? "New session" : "Edit session")
+            .navigationTitle(template == nil ? "New workout plan" : "Edit workout plan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -89,7 +89,7 @@ struct SessionBuilderView: View {
 
     private var displayName: String {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? "Session \(Date().formatted(date: .abbreviated, time: .omitted))" : trimmed
+        return trimmed.isEmpty ? "Plan \(Date().formatted(date: .abbreviated, time: .omitted))" : trimmed
     }
 
     private func save(start: Bool) {
@@ -139,12 +139,12 @@ struct BuilderRow: View {
                 HStack {
                     Text(item.name).font(.headline)
                     Spacer()
-                    Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
+                    Image(systemName: "slider.horizontal.3").foregroundStyle(Theme.subtext)
                 }
                 Text(item.setSummary).font(.subheadline)
                 Text("Rest \(Format.rest(item.restBetweenSets)) between sets · \(Format.rest(item.restAfterExercise)) after")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
                 MuscleChips(target: item.targetMuscles, compact: true)
             }
             .contentShape(Rectangle())
@@ -169,10 +169,12 @@ struct ReviewSessionView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(name).font(.title2.bold())
                         Text("\(items.count) exercises · \(totalSets) sets · about \(restMinutes) min of rest")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                     }
                 }
                 Section("Muscles you'll hit") {
+                    BodyMapView(loads: MuscleAnalysis.loads(planned: items))
+                        .padding(.vertical, 8)
                     MuscleOverview(loads: MuscleAnalysis.loads(planned: items))
                         .padding(.vertical, 6)
                 }
@@ -184,7 +186,7 @@ struct ReviewSessionView: View {
                                               secondaryMuscles: item.secondaryMuscles, exerciseId: item.exerciseId, size: 64)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.name)
-                                Text(item.setSummary).font(.caption).foregroundStyle(.secondary)
+                                Text(item.setSummary).font(.caption).foregroundStyle(Theme.subtext)
                                 MuscleChips(target: item.targetMuscles, compact: true)
                             }
                         }
@@ -192,7 +194,7 @@ struct ReviewSessionView: View {
                 }
                 Section {
                     Button(action: onStart) {
-                        Label("Confirm & start", systemImage: "play.fill")
+                        Label("Save & start session", systemImage: "play.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
@@ -202,7 +204,7 @@ struct ReviewSessionView: View {
                     .listRowInsets(EdgeInsets())
     
                     Button(action: onSave) {
-                        Text("Save for later").frame(maxWidth: .infinity)
+                        Text("Save plan for later").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .listRowBackground(Color.clear)
@@ -214,7 +216,7 @@ struct ReviewSessionView: View {
             .listRowBackground(Theme.card)
         }
         .themedList()
-        .navigationTitle("Confirm session")
+        .navigationTitle("Confirm plan")
         .navigationBarTitleDisplayMode(.inline)
     }
 

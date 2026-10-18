@@ -38,7 +38,7 @@ struct EffortSheet: View {
                                     .foregroundStyle(EffortScale.color(effort))
                                 VStack(alignment: .leading) {
                                     Text(EffortScale.label(effort)).font(.headline)
-                                    Text(hint).font(.caption).foregroundStyle(.secondary)
+                                    Text(hint).font(.caption).foregroundStyle(Theme.subtext)
                                 }
                             }
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), spacing: 6) {

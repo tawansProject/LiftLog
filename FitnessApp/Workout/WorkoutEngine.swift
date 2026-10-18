@@ -71,8 +71,10 @@ final class WorkoutEngine: ObservableObject {
 
     // MARK: Start / finish
 
-    func start(name: String, templateID: UUID?, items: [PlannedExercise]) {
-        guard !items.isEmpty else { return }
+    /// Starts a workout from a plan. `allowEmpty` is for quick sessions,
+    /// where exercises are added while training.
+    func start(name: String, templateID: UUID?, items: [PlannedExercise], allowEmpty: Bool = false) {
+        guard !items.isEmpty || allowEmpty else { return }
         restTimer?.invalidate()
         NotificationManager.shared.cancelRest()
         finishAfterRating = false
@@ -83,6 +85,13 @@ final class WorkoutEngine: ObservableObject {
         isMinimized = false
         if AppSettings.launchWatchWorkout { HealthKitManager.shared.startWatchWorkout() }
         Task { _ = await NotificationManager.shared.requestAuthorization() }
+    }
+
+    /// Quick session: starts right away with no plan; it's saved as a
+    /// session when finished (and can be kept as a plan from the summary).
+    func startQuick() {
+        guard !isActive else { return }
+        start(name: "Quick session", templateID: nil, items: [], allowEmpty: true)
     }
 
     /// If an exercise was done more recently (e.g. in another session) than
@@ -112,6 +121,11 @@ final class WorkoutEngine: ObservableObject {
     /// Finish button: asks for any missing effort rating first, then saves.
     func requestFinish() {
         guard let w = workout else { return }
+        // Nothing logged (e.g. a quick session with no sets): there's nothing to save.
+        guard w.exercises.contains(where: \.hasProgress) else {
+            discard()
+            return
+        }
         if let index = w.unratedIndex {
             finishAfterRating = true
             mutate { $0.effortPendingIndex = index }
@@ -479,6 +493,15 @@ final class WorkoutEngine: ObservableObject {
 
     func pushToWatch() {
         PhoneConnectivity.shared.push(snapshot())
+    }
+
+    /// The exercise the next set belongs to: the current one if it has sets
+    /// left, otherwise the next pending exercise.
+    func upNextExercise() -> LoggedExercise? {
+        guard let w = workout, w.exercises.indices.contains(w.currentIndex) else { return nil }
+        let exercise = w.exercises[w.currentIndex]
+        if nextSetIndex(in: exercise) != nil { return exercise }
+        return Self.nextPendingIndex(in: w, after: w.currentIndex).map { w.exercises[$0] }
     }
 
     func nextUpDescription() -> String? {

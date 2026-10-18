@@ -5,6 +5,8 @@ name: Build iPhone app
 on:
   push:
     branches: [main]
+    # The native app only; web-only changes don't need a Mac build.
+    paths-ignore: ['web/**', 'docs/**', '**.md', '.github/workflows/web-ci.yml']
   workflow_dispatch:
 
 jobs:
